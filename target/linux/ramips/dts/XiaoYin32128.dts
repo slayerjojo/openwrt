@@ -1,0 +1,155 @@
+/dts-v1/;
+
+/include/ "mt7628an.dtsi"
+
+/ {
+	compatible = "mediatek,XiaoYin", "mediatek,mt7628an-soc";
+	model = "XiaoYin";
+
+	chosen {
+		bootargs = "console=ttyS0,57600";
+	};
+
+	memory@0 {
+		device_type = "memory";
+		reg = <0x0 0x8000000>;
+	};
+
+	pinctrl {
+		state_default: pinctrl0 {
+			gpio {
+				ralink,group = "gpio","perst", "refclk","spis","wled_an","ephy_p0","ephy_p1","ephy_p2","ephy_p3","ephy_p4","wdt";
+				ralink,function = "gpio";
+			};
+			
+			uart2 {
+				ralink,group = "uart2";
+				ralink,function = "uart2";
+			};
+			
+			uart1 {
+				ralink,group = "uart1";
+				ralink,function = "uart1";
+			};
+
+			uart0 {
+				ralink,group = "uart0";
+				ralink,function = "uart0";
+			};
+			
+			i2c {
+				ralink,group = "i2c";
+				ralink,function = "i2c";
+			};
+		};
+	};
+
+	palmbus@10000000 {
+		spi@b00 {
+			status = "okay";
+
+			pinctrl-names = "default";
+			pinctrl-0 = <&spi_pins>, <&spi_cs1_pins>;
+
+			m25p80@0 {
+				#address-cells = <1>;
+				#size-cells = <1>;
+				compatible = "w25q256";
+				reg = <0 0>;
+				linux,modalias = "m25p80", "w25q256";
+				spi-max-frequency = <40000000>;
+				m25p,chunked-io = <31>;
+
+				partition@0 {
+					label = "u-boot";
+					reg = <0x0 0x30000>;
+					read-only;
+				};
+
+				partition@30000 {
+					label = "u-boot-env";
+					reg = <0x30000 0x10000>;
+				};
+
+				factory: partition@40000 {
+					label = "factory";
+					reg = <0x40000 0x10000>;
+				};
+
+				partition@50000 {
+					label = "firmware";
+					reg = <0x50000 0x1fb0000>; 
+				};
+			};
+
+			spidev@1 {
+				#address-cells = <1>;
+				#size-cells = <1>;
+				compatible = "spidev";
+				reg = <1 0>;
+				spi-max-frequency = <40000000>;
+			};
+		};
+
+		i2c@900 {
+			status = "okay";
+		};
+
+		uart1@d00 {
+			status = "okay";
+		};
+
+		uart2@e00 {
+			status = "okay";
+		};
+
+		pwm@5000 {
+			status = "okay";
+		};
+	};
+
+	ethernet@10100000 {
+		mtd-mac-address = <&factory 0x28>;
+	};
+	
+	
+	gpio-leds {
+		compatible = "gpio-leds";
+
+		sys {
+			label = "sys";
+			gpios = <&gpio1 9 0>;
+			default-state = "off";
+		};
+
+		wifi {
+			label = "wifi";
+			gpios = <&gpio1 12 0>;
+			default-state = "off";
+		};
+
+		wan {
+			label = "wan";
+			gpios = <&gpio1 11 0>;
+			default-state = "off";
+		};
+
+		zpower {
+			label = "zpower";
+			gpios = <&gpio1 10 0>;
+			default-state = "off";
+		};
+	};
+
+	gpio-keys-polled {
+			compatible = "gpio-keys-polled";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			poll-interval = <20>;
+			reset {
+					label = "reset";
+					gpios = <&gpio1 6 1>;
+					linux,code = <0x198>;
+			};
+	};
+};

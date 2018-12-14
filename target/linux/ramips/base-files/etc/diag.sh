@@ -203,6 +203,9 @@ get_status_led() {
 	wr8305rt)
 		status_led="wr8305rt:sys"
 		;;
+	XiaoYin)
+		status_led="sys"
+		;;
 	whr-300hp2 | \
 	whr-600d | \
 	whr-1166d | \
