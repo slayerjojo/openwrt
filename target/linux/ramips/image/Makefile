@@ -1028,6 +1028,7 @@ Image/Build/Profile/MT7688=$(call BuildFirmware/Default4M/$(1),$(1),mt7628,MT762
 Image/Build/Profile/LinkIt7688=$(call BuildFirmware/Default32M/$(1),$(1),LinkIt7688,LINKIT7688)
 
 Image/Build/Profile/XiaoYin0864=$(call BuildFirmware/Default8M/$(1),$(1),XiaoYin0864,XiaoYin0864)
+Image/Build/Profile/XiaoYin1664=$(call BuildFirmware/Default16M/$(1),$(1),XiaoYin1664,XiaoYin1664)
 Image/Build/Profile/XiaoYin32128=$(call BuildFirmware/Default32M/$(1),$(1),XiaoYin32128,XiaoYin32128)
 
 ifeq ($(SUBTARGET),mt7628)
@@ -1036,6 +1037,7 @@ define Image/Build/Profile/Default
 	$(call Image/Build/Profile/LinkIt7688,$(1))
 	
 	$(call Image/Build/Profile/XiaoYin0864,$(1))
+	$(call Image/Build/Profile/XiaoYin1664,$(1))
 	$(call Image/Build/Profile/XiaoYin32128,$(1))
 endef
 endif
