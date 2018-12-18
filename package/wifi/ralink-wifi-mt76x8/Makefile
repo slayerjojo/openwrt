@@ -19,7 +19,7 @@ USE_SRC=$(shell ls ./src/ 2>/dev/null >/dev/null && echo 1)
 
 include $(TOPDIR)/rules.mk
 
-PKG_NAME:=ralink-wifi-mt7628
+PKG_NAME:=ralink-wifi-mt76x8
 PKG_RELEASE:=1
 
 PKG_BUILD_DIR:=$(BUILD_DIR)/$(PKG_NAME)
@@ -28,14 +28,14 @@ PKG_INSTALL_DIR:=$(PKG_BUILD_DIR)/ipkg-install
 include $(INCLUDE_DIR)/kernel.mk
 include $(INCLUDE_DIR)/package.mk
 
-define Package/ralink-wifi-mt7628
+define Package/ralink-wifi-mt76x8
   SECTION:=ralink
   CATEGORY:=Ralink
   TITLE:=Ralink APSoC WiFi SoftAP driver
-  DEPENDS:=@TARGET_ramips_mt7628 +wireless-tools +maccalc
+  DEPENDS:=@(TARGET_ramips_mt7628||TARGET_ramips_mt7688) +wireless-tools +maccalc
 endef
 
-define Package/ralink-wifi-mt7628/description
+define Package/ralink-wifi-mt76x8/description
 	Ralink APSoC WiFi driver for DreamBox
 endef
 
@@ -65,7 +65,7 @@ endef
 
 endif
 
-define Package/ralink-wifi-mt7628/install
+define Package/ralink-wifi-mt76x8/install
 	$(INSTALL_DIR) $(1)/lib/modules/$(LINUX_VERSION) $(1)/etc/Wireless/RT2860/
 	$(CP) -rf ./files/* $(1)/
 	$(CP) modules/* $(1)/lib/modules/$(LINUX_VERSION)
@@ -76,5 +76,5 @@ define Package/ralink-wifi-mt7628/install
 
 endef
 
-$(eval $(call BuildPackage,ralink-wifi-mt7628))
+$(eval $(call BuildPackage,ralink-wifi-mt76x8))
 

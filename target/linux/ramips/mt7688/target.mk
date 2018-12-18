@@ -9,6 +9,8 @@ FEATURES+=usb
 CPU_TYPE:=24kec
 CPU_SUBTYPE:=dsp
 
+DEFAULT_PACKAGES += ralink-wifi-mt76x8
+
 define Target/Description
 	Build firmware images for Ralink MT7688 based boards.
 endef

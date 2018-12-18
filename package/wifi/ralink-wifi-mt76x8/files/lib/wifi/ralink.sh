@@ -623,7 +623,7 @@ detect_ralink() {
 	
 	mach=$(cat /proc/cpuinfo | grep machine | awk '{ print $3}')
 
-	cat <<EOF
+		cat <<EOF
 config wifi-device  ra${i}
 	option type     ralink
 	option mode 	9
