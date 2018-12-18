@@ -640,13 +640,14 @@ config wifi-iface
 	option network	lan
 	option mode     ap
 	option ssid     YunYin_$(cat /sys/class/net/eth0/address|awk -F ":" '{print $4""$5""$6 }'| tr a-z A-Z)
-	option encryption psk2
-	option key 12345678
+	option encryption none
+#	option key 12345678
 	option ApCliEnable '1'
 	option ApCliSsid 'aAP'
 	option ApCliAuthMode 'WPA2PSK'
 	option ApCliEncrypType 'AES'
 	option ApCliPassWord '87654321'
+	option hidden	0
 	
 EOF
 
