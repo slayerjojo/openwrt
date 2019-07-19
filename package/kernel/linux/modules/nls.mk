@@ -19,6 +19,22 @@ endef
 $(eval $(call KernelPackage,nls-base))
 
 
+define KernelPackage/nls-cp936
+  SUBMENU:=Native Language Support
+  TITLE:=Simplified Chinese charset (CP936， GB2312)
+  KCONFIG:=CONFIG_NLS_CODEPAGE_936
+  FILES:=$(LINUX_DIR)/fs/nls/nls_cp936.ko
+  AUTOLOAD:=$(call AutoLoad,25,nls_cp936)
+  $(call AddDepends/nls)
+endef
+
+define KernelPackage/nls-cp936/description
+ Kernel module for NLS Codepage 936 (CP936， GB2312)
+endef
+
+$(eval $(call KernelPackage,nls-cp936))
+
+
 define KernelPackage/nls-cp437
   SUBMENU:=Native Language Support
   TITLE:=Codepage 437 (United States, Canada)
