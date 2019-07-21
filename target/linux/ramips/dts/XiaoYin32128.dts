@@ -116,17 +116,17 @@
 	gpio-leds {
 		compatible = "gpio-leds";
 
-		sys {
-			label = "sys";
-			gpios = <&gpio1 9 0>;
-			default-state = "off";
-		};
+		// sys {
+		// 	label = "sys";
+		// 	gpios = <&gpio1 9 0>;
+		// 	default-state = "off";
+		// };
 
-		wifi {
-			label = "wifi";
-			gpios = <&gpio1 12 0>;
-			default-state = "off";
-		};
+		// wifi {
+		// 	label = "wifi";
+		// 	gpios = <&gpio1 12 0>;
+		// 	default-state = "off";
+		// };
 
 		wan {
 			label = "wan";
@@ -134,11 +134,11 @@
 			default-state = "off";
 		};
 
-		zpower {
-			label = "zpower";
-			gpios = <&gpio1 10 0>;
-			default-state = "off";
-		};
+		// zpower {
+		// 	label = "zpower";
+		// 	gpios = <&gpio1 10 0>;
+		// 	default-state = "off";
+		// };
 	};
 
 	gpio-keys-polled {

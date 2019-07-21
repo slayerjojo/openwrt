@@ -1,6 +1,29 @@
-iotsigma_gateway: main.o
-	$(CC) $(LDFLAGS) main.o -o iotsigma_gateway
-main.o: main.c
-	$(CC) $(CFLAGS) -c main.c
-clean:
-	rm *.o iotsigma_gateway
+PROGRAM := iotsigma_gateway
+OBJDIR	:= obj
+SRCEXTS := .c
+CFLAGS += -g -DDEBUG -errchk=longptr64 -Wno-int-to-pointer-cast -Wno-pointer-to-int-cast
+RM = rm -rf
+
+SOURCES = $(shell find ./ -maxdepth 1 -name "*$(SRCEXTS)")
+OBJS = $(foreach x,$(SRCEXTS), $(patsubst ./%$(x),$(OBJDIR)/%.o,$(filter %$(x),$(SOURCES))))
+OBJDIRS	= $(sort $(dir $(OBJS)))
+DEPS = $(patsubst %.o,%.d,$(OBJS))
+
+.PHONY : all clean
+
+all : $(PROGRAM)
+
+include $(DEPS)
+
+$(OBJDIR)/%.d : %$(SRCEXTS)
+	mkdir -p $(OBJDIR)
+	$(CC) -o $@  $(CFLAGS) -MM -MD -MT '$(OBJDIR)/$(patsubst %.c,%.o,$<)' $<
+$(OBJDIR)/main.o : main.c
+	$(CC) -o $@ -c $(CFLAGS) $<
+$(OBJDIR)/%.o : %$(SRCEXTS) %.h
+	$(CC) -o $@ -c $(CFLAGS) $<
+$(PROGRAM) : $(OBJS)
+	$(CC) -o $(PROGRAM) $(OBJS) $(LDFLAGS)
+
+clean :
+	$(RM) $(OBJDIR)/* $(PROGRAM)
