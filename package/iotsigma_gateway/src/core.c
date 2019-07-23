@@ -12,7 +12,6 @@
 #include "opcode.h"
 #include "interface_network.h"
 #include "interface_os.h"
-#include "driver_key.h"
 #include "driver_led.h"
 
 #define DEVICE_SYNC_SIMPLE_DESC 0x01
@@ -524,17 +523,9 @@ static void cluster_handler(uint8_t code, const void *evt)
     }
 }
 
-static void key_handler(uint8_t key, uint8_t press)
-{
-    if (!press)
-        cluster_declare(TERMINAL_TYPE_GATEWAY, 1);
-}
-
 void core_init(void)
 {
     led_set(LED_ID_NET_RED, 0xff, 0);
-
-    driver_key_init(key_handler);
 
     block_defrag();
 
@@ -552,8 +543,6 @@ void core_init(void)
 
 void core_update(void)
 {
-    driver_key_update();
-    
     cluster_update();
 
     zigbee_update();

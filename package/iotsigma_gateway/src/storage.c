@@ -26,15 +26,7 @@ const uint8_t *terminal_id(void)
 {
     if (!_load_terminal)
     {
-        char path[32] = {0};
-        sprintf(path, "%02x%02x%02x%02x%02x%02x.terminal", 
-            *(network_net_mac() + 0),
-            *(network_net_mac() + 1),
-            *(network_net_mac() + 2),
-            *(network_net_mac() + 3),
-            *(network_net_mac() + 4),
-            *(network_net_mac() + 5));
-        FILE *fp = fopen(path, "rb"); 
+        FILE *fp = fopen("iotsigma.terminal", "rb"); 
         if (fp)
         {
             fread(_terminal, MAX_TERMINAL_ID, 1ul, fp);
@@ -53,18 +45,10 @@ void terminal_save(const uint8_t *terminal)
 
     _load_terminal = 1;
 
-    char path[32] = {0};
-    sprintf(path, "%02x%02x%02x%02x%02x%02x.terminal", 
-        *(network_net_mac() + 0),
-        *(network_net_mac() + 1),
-        *(network_net_mac() + 2),
-        *(network_net_mac() + 3),
-        *(network_net_mac() + 4),
-        *(network_net_mac() + 5));
-    FILE *fp = fopen(path, "wb"); 
+    FILE *fp = fopen("iotsigma.terminal", "wb"); 
     if (!fp)
     {
-        LogError("open %s failed.", path);
+        LogError("open iotsigma failed.");
         return;
     }
 
@@ -76,15 +60,7 @@ const uint8_t *cluster_id(void)
 {
     if (!_load_cluster)
     {
-        char path[32] = {0};
-        sprintf(path, "%02x%02x%02x%02x%02x%02x.cluster", 
-            *(network_net_mac() + 0),
-            *(network_net_mac() + 1),
-            *(network_net_mac() + 2),
-            *(network_net_mac() + 3),
-            *(network_net_mac() + 4),
-            *(network_net_mac() + 5));
-        FILE *fp = fopen(path, "rb"); 
+        FILE *fp = fopen("iotsigma.cluster", "rb"); 
         if (fp)
         {
             fread(_cluster, MAX_CLUSTER_ID, 1ul, fp);
@@ -101,15 +77,7 @@ const uint8_t *cluster_pin(void)
 {
     if (!_load_cluster)
     {
-        char path[32] = {0};
-        sprintf(path, "%02x%02x%02x%02x%02x%02x.cluster", 
-            *(network_net_mac() + 0),
-            *(network_net_mac() + 1),
-            *(network_net_mac() + 2),
-            *(network_net_mac() + 3),
-            *(network_net_mac() + 4),
-            *(network_net_mac() + 5));
-        FILE *fp = fopen(path, "rb"); 
+        FILE *fp = fopen("iotsigma.cluster", "rb"); 
         if (fp)
         {
             fread(_cluster, MAX_CLUSTER_ID, 1ul, fp);
@@ -129,18 +97,10 @@ void cluster_save(const uint8_t *cluster, const uint8_t *pin)
     memcpy(_cluster, cluster, MAX_CLUSTER_ID);
     memcpy(_pin, pin, MAX_CLUSTER_PIN);
     
-    char path[32] = {0};
-    sprintf(path, "%02x%02x%02x%02x%02x%02x.cluster", 
-        *(network_net_mac() + 0),
-        *(network_net_mac() + 1),
-        *(network_net_mac() + 2),
-        *(network_net_mac() + 3),
-        *(network_net_mac() + 4),
-        *(network_net_mac() + 5));
-    FILE *fp = fopen(path, "wb"); 
+    FILE *fp = fopen("iotsigma.cluster", "wb"); 
     if (!fp)
     {
-        LogError("open %s failed.", path);
+        LogError("open iotsigma failed.");
         return;
     }
 

@@ -236,7 +236,11 @@ void console_update(void)
     if (fp < 0)
     {
         if (fp < -1)
+        {
+            network_tcp_close(_fp);
+            _fp = -1;
             return;
+        }
     }
     else
     {

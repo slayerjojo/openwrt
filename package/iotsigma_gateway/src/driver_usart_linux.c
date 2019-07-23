@@ -62,7 +62,7 @@ int linux_usart_open(uint8_t usart, uint32_t baud, uint32_t databit, char parity
     int fp = -1;
     if (0 == usart)
     {
-        fp = open("/dev/ttyS6", O_RDWR);
+        fp = open("/dev/ttyS1", O_RDWR);
     }
     if (-1 == fp)
     {
@@ -172,6 +172,8 @@ int linux_usart_open(uint8_t usart, uint32_t baud, uint32_t databit, char parity
     int flags = fcntl(fp, F_GETFL);
     flags |= O_NONBLOCK;
     fcntl(fp, F_SETFL, flags);
+
+    LogAction("open usart (baud:%u databit:%u) successed.", baud, databit);
 
     return 1;
 }

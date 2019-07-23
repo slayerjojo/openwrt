@@ -79,7 +79,7 @@ void linux_io_init(void)
             write(fp, _gpios[io].value, strlen(_gpios[io].value));
             close(fp);
         }
-        LogError("gpio%s open value failed.", _gpios[io].io);
+        LogAction("gpio%s opened.", _gpios[io].io);
     }
 }
 

@@ -8,13 +8,17 @@ logger "$BUTTON pressed for $SEEN seconds"
 
 if [ "$SEEN" -lt 1 ]
 then
+    killall -SIGUSR1 iotsigma_gateway
+	#echo "REBOOT" > /dev/console
+	#sync
+	#reboot
+elif [ "$SEEN" -gt 5 ]
+then
 	echo "REBOOT" > /dev/console
 	sync
 	reboot
-elif [ "$SEEN" -gt 5 ]
-then
-	echo "FACTORY RESET" > /dev/console
-	jffs2reset -y && reboot &
+	#echo "FACTORY RESET" > /dev/console
+	#jffs2reset -y && reboot &
 fi
 
 return 0

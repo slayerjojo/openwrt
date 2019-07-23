@@ -1,7 +1,7 @@
 PROGRAM := iotsigma_gateway
 OBJDIR	:= obj
 SRCEXTS := .c
-CFLAGS += -g -DDEBUG -errchk=longptr64 -Wno-int-to-pointer-cast -Wno-pointer-to-int-cast
+CFLAGS += -g -DDEBUG #-errchk=longptr64 -Wno-int-to-pointer-cast -Wno-pointer-to-int-cast
 RM = rm -rf
 
 SOURCES = $(shell find ./ -maxdepth 1 -name "*$(SRCEXTS)")

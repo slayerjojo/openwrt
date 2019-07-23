@@ -1,9 +1,12 @@
 #define THIS_IS_STACK_APPLICATION
 
+#include <signal.h>
 #include <string.h>
 #include "env.h"
 #include "core.h"
+#include "cluster.h"
 #include "storage.h"
+#include "entity_type.h"
 #include "interface_usart.h"
 #include "interface_io.h"
 #include "interface_os.h"
@@ -22,11 +25,19 @@
 
 static uint8_t _heap[MAX_HEAP_SIZE] = {0};
 
+static void sigroutine(int dunno)
+{
+    if (SIGUSR1 == dunno)
+        cluster_declare(TERMINAL_TYPE_GATEWAY, 1);
+}
+
 void main(void)
 {
     buddha_heap_init(_heap, MAX_HEAP_SIZE);
     
     block_init(64);
+
+    signal(SIGUSR1, sigroutine);
 
     srand(time(0));
     
@@ -38,19 +49,7 @@ void main(void)
     
     network_init();
 
-    {
-        char file[255] = {0};
-
-        sprintf(file, "%02x%02x%02x%02x%02x%02x_", 
-            *(network_net_mac() + 0),
-            *(network_net_mac() + 1),
-            *(network_net_mac() + 2),
-            *(network_net_mac() + 3),
-            *(network_net_mac() + 4),
-            *(network_net_mac() + 5));
-
-        flash_init(file);
-    }
+    flash_init("iotsigma.");
 
     console_init();
     

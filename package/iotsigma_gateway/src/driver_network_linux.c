@@ -1,15 +1,6 @@
 #include "driver_linux.h"
 
 #if defined(PLATFORM_OPENWRT) || defined(PLATFORM_LINUX)
-/*
-#include <string.h>
-#include <stdlib.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
-#include <stdarg.h>
-#include <stdio.h>
-#include <string.h>
-*/
 
 #include <sys/ioctl.h>
 #include <sys/types.h>
@@ -70,7 +61,7 @@ void linux_network_init(void)
         for (i = 0; i < numif; i++)
         {
             r = &ifr[i];
-            if (!strcmp(r->ifr_name, "eth1"))
+            if (!strcmp(r->ifr_name, "eth0.2"))
                 break;
         }
 
