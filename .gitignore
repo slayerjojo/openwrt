@@ -23,3 +23,6 @@ key-build*
 TAGS*~
 git-src
 tags
+.root
+obj/
+package/iotsigma_gateway/src/iotsigma_gateway

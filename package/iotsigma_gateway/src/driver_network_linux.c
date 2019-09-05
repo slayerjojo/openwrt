@@ -1,6 +1,6 @@
 #include "driver_linux.h"
 
-#if defined(PLATFORM_OPENWRT) || defined(PLATFORM_LINUX)
+#if defined(PLATFORM_LINUX)
 
 #include <sys/ioctl.h>
 #include <sys/types.h>

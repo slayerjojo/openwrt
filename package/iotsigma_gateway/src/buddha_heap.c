@@ -3,7 +3,7 @@
 
 #undef BUDDHA_HEAP_DEBUG
 
-#define BUDDHA_HEAP_MAGIC
+#undef BUDDHA_HEAP_MAGIC
 
 #ifndef BUDDHA_HEAP_DEBUG
 
@@ -302,7 +302,16 @@ void buddha_heap_check(void)
     while (pos < _size)
     {
         BuddhaHeapHeader *header = (BuddhaHeapHeader *)(_heap + pos);
-        LogError("memory addr:%u magic:%02x alloc:%d size:%d mark:%d", pos, header->magic, header->alloc, header->size, header->mark);
+        LogError("memory addr:%u magic:%02x alloc:%d size:%d mark:%d", 
+            pos, 
+#ifdef BUDDHA_HEAP_MAGIC
+            header->magic, 
+#else
+            0,
+#endif
+            header->alloc, 
+            header->size, 
+            header->mark);
         pos += sizeof(BuddhaHeapHeader) + header->size;
     }
     LogError("buddha memory check end\r\n");
@@ -416,6 +425,7 @@ void *buddha_heap_reuse(void *addr)
 {
     BuddhaHeapHeader *mem = (BuddhaHeapHeader *)(((uint8_t *)addr) - sizeof(BuddhaHeapHeader));
     mem->temporary = 0;
+    return addr;
 }
 
 void buddha_heap_mark_set(void *addr, uint8_t mark)

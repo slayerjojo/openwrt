@@ -8,13 +8,9 @@ extern "C"
 
 #include "env.h"
 
-typedef struct
-{
-    const uint8_t *dir;
-    const uint8_t *file;
-}HalFlashSpace;
-
 #if defined(PLATFORM_LINUX)
+
+#include "driver_flash_file.h"
 
 #define flash_init flash_file_init
 #define flash_space flash_file_space

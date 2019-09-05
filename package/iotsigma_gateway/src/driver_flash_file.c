@@ -1,54 +1,33 @@
 #include "driver_flash_file.h"
 #include <stdio.h>
+#include "hex.h"
 #include "log.h"
 
-#if defined(PLATFORM_OPENWRT)
+#if defined(PLATFORM_LINUX)
+
+#define FLASH_FILE_PREFIX "./"
 
 static FILE *_fp = 0;
-static char _file[255] = {0};
-static int _size = 0;
 
-void flash_file_init(const char *path)
+void flash_file_init(void)
 {
-    if (path)
-    {
-        strcpy(_file, path);
-        _size = strlen(path);
-    }
-    flash_file_space(0);
+    flash_file_space((const uint8_t *)"\0\0\0\0\0\0\0\0\0\0");
 }
 
-void flash_file_space(const HalFlashSpace *space)
+void flash_file_space(const uint8_t *space)
 {
-    const uint8_t *dir = "\0\0\0\0\0\0";
-    const uint8_t *file = "\0\0\0\0";
-    if (space)
-    {
-        if (space->dir)
-            dir = space->dir;
-        if (space->file)
-            file = space->file;
-    }
-    sprintf(_file + _size, "%02x%02x%02x%02x%02x%02x.%02x%02x%02x%02x", 
-        dir[0],
-        dir[1],
-        dir[2],
-        dir[3],
-        dir[4],
-        dir[5],
-        file[0],
-        file[1],
-        file[2],
-        file[3]);
+    char file[sizeof(FLASH_FILE_PREFIX) + 6 + 4 + 1] = {0};
+    strcat(file, FLASH_FILE_PREFIX);
+    bin2hex(file + strlen(FLASH_FILE_PREFIX), space, 10);
     if (_fp)
         fclose(_fp);
-    _fp = fopen(_file, "r+b");
+    _fp = fopen(file, "r+b");
     if (!_fp)
     {
-        _fp = fopen(_file, "w+b");
+        _fp = fopen(file, "w+b");
         if (!_fp)
         {
-            LogError("open flash file (%s) failed", _file);
+            LogError("open flash file (%s) failed", file);
             return;
         }
     }
@@ -71,7 +50,7 @@ int flash_file_read(uint32_t addr, void *buffer, uint32_t size)
 
     if (!_fp)
     {
-        LogError("open flash file %s failed", _file);
+        LogError("flash file not ready");
         return 0;
     }
     fseek(_fp, 0, SEEK_END);
@@ -86,14 +65,13 @@ int flash_file_read(uint32_t addr, void *buffer, uint32_t size)
     {
         fseek(_fp, addr, SEEK_SET);
         fread(buffer, pos - addr, 1, _fp);
-        memset(buffer + pos - addr, 0, addr + size - pos);
+        memset((uint8_t *)buffer + pos - addr, 0, addr + size - pos);
     }
     else
     {
         fseek(_fp, addr, SEEK_SET);
         ret = fread(buffer, size, 1, _fp);
     }
-    fflush(_fp);
     return size;
 }
 
@@ -103,7 +81,7 @@ void flash_file_write(uint32_t addr, const void *buffer, uint32_t size)
         size = flash_file_bulk() - addr;
     if (!_fp)
     {
-        LogError("open flash file %s failed", _file);
+        LogError("flash file not ready");
         return;
     }
     fseek(_fp, 0, SEEK_END);
@@ -125,7 +103,7 @@ void flash_file_write(uint32_t addr, const void *buffer, uint32_t size)
     fflush(_fp);
 }
 
-int flash_file_compare(uint32_t addr, const void *buffer, uint32_t size)
+int flash_file_compare(uint32_t addr, const void *buffer, size_t size)
 {
     if (addr + size > flash_file_bulk())
         size = flash_file_bulk() - addr;
@@ -134,13 +112,13 @@ int flash_file_compare(uint32_t addr, const void *buffer, uint32_t size)
 
     if (!_fp)
     {
-        LogError("open flash file %s failed", _file);
+        LogError("flash file not ready");
         return -1;
     }
     fseek(_fp, 0, SEEK_END);
 
     uint32_t pos = ftell(_fp);
-    int i = 0;
+    size_t i = 0;
     while (i < size)
     {
         uint8_t data = 0;
@@ -174,13 +152,13 @@ int flash_file_conflict(uint32_t addr, const void *buffer, uint32_t size)
 
     if (!_fp)
     {
-        LogError("open flash file %s failed", _file);
+        LogError("flash file not ready");
         return -1;
     }
     fseek(_fp, 0, SEEK_END);
 
     uint32_t pos = ftell(_fp);
-    int i = 0;
+    size_t i = 0;
     while (i < size)
     {
         uint8_t data = 0;
@@ -204,12 +182,12 @@ int flash_file_conflict(uint32_t addr, const void *buffer, uint32_t size)
 
 void flash_file_erase(uint32_t addr)
 {
-    addr /= flash_file_bulk();
-    addr *= flash_file_bulk();
+    addr /= flash_file_unit();
+    addr *= flash_file_unit();
 
     if (!_fp)
     {
-        LogError("open flash file %s failed", _file);
+        LogError("flash file not ready");
         return;
     }
     fseek(_fp, 0, SEEK_END);

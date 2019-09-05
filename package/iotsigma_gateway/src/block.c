@@ -1,6 +1,5 @@
 #include "block.h"
 #include "interface_flash.h"
-#include "driver_flash_file.h"
 #include "log.h"
 
 #define BLOCK_UNIT (flash_unit())

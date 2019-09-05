@@ -8,6 +8,7 @@ extern "C"
 
 #include "env.h"
 #include "endian.h"
+#include "driver_network_linux.h"
 
 #define NETWORK_MAC_LENGTH (6ul)
 

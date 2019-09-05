@@ -13,7 +13,7 @@ struct {
     {
         "42",
         "out",
-        "0"
+        "1"
     },
     {
         "44",
@@ -38,29 +38,24 @@ void linux_io_init(void)
         
         sprintf(path, "/sys/class/gpio/gpio%s/direction", _gpios[io].io);
         fp = open(path, O_WRONLY);
-        if (fp >= 0)
+        if (fp < 0)
         {
-            LogAction("gpio%s opened already.", _gpios[io].io);
-            continue;
+            fp = open("/sys/class/gpio/export", O_WRONLY);
+            if (fp < 0)
+            {
+                LogError("gpio%s open failed!", _gpios[io].io);
+                continue;
+            }
+            write(fp, _gpios[io].io, 2);
         }
         close(fp);
 
-        fp = open("/sys/class/gpio/export", O_WRONLY);
-        if (fp < 0)
-        {
-            LogError("gpio%s open failed!", _gpios[io].io);
-            close(fp);
-            continue;
-        }
-        write(fp, _gpios[io].io, 2);
-        close(fp);
 
         sprintf(path, "/sys/class/gpio/gpio%s/direction", _gpios[io].io);
         fp = open(path, O_WRONLY);
         if (fp < 0)
         {
             LogError("gpio%s open direction failed!", _gpios[io].io);
-            close(fp);
             continue;
         }
         write(fp, _gpios[io].direction, strlen(_gpios[io].direction));
@@ -73,7 +68,6 @@ void linux_io_init(void)
             if (fp < 0)
             {
                 LogError("gpio%s open value failed.", _gpios[io].io);
-                close(fp);
                 continue;
             }
             write(fp, _gpios[io].value, strlen(_gpios[io].value));

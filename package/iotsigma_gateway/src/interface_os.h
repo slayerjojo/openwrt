@@ -7,6 +7,7 @@ extern "C"
 #endif
 
 #include "env.h"
+#include "driver_linux.h"
 
 #if defined(PLATFORM_LINUX)
 

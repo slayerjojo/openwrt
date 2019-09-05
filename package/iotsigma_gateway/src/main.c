@@ -33,11 +33,11 @@ static void sigroutine(int dunno)
 
 void main(void)
 {
+    signal(SIGUSR1, sigroutine);
+
     buddha_heap_init(_heap, MAX_HEAP_SIZE);
     
     block_init(64);
-
-    signal(SIGUSR1, sigroutine);
 
     srand(time(0));
     

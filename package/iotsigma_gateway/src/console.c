@@ -2,7 +2,6 @@
 #include "interface_network.h"
 #include "interface_os.h"
 #include "interface_io.h"
-#include "driver_linux.h"
 #include "driver_network_linux.h"
 #include "buddha_heap.h"
 #include "command.h"

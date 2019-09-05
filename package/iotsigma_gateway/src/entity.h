@@ -2,8 +2,8 @@
 #define __ENTITY_H__
 
 #include "env.h"
-#include "cluster.h"
 #include "entity_type.h"
+#include "block.h"
 
 #ifdef __cplusplus
 extern "C"
@@ -21,7 +21,8 @@ extern "C"
 
 #define PROPERTY_ENTITY_TYPE 0
 #define PROPERTY_ENTITY_ID 1
-#define PROPERTY_ENTITY_DIRTY 2
+#define PROPERTY_ENTITY_FLAGS 2
+#define PROPERTY_ENTITY_DIRTY 3
 
 uint32_t entity_create(uint8_t type, uint32_t size);
 uint32_t entity_init(uint16_t entity, uint8_t type, uint32_t size);
@@ -32,6 +33,8 @@ uint32_t entity_get(uint16_t entity);
 uint32_t entity_size(uint32_t addr);
 uint32_t entity_pack(uint32_t addr, uint8_t *data, uint32_t size);
 int entity_unpack(uint32_t *addr, uint8_t *data, uint32_t size);
+
+uint32_t property_value_size(uint8_t type, const void *value);
 uint32_t property_iterator(uint32_t addr, uint32_t offset, uint8_t *property, uint8_t *type);
 uint8_t property_type(uint32_t addr, uint8_t property);
 uint32_t property_size(uint32_t addr, uint8_t property);

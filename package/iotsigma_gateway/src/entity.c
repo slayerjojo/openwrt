@@ -151,6 +151,14 @@ int entity_unpack(uint32_t *addr, uint8_t *data, uint32_t size)
     return !!ret;
 }
 
+uint32_t property_value_size(uint8_t type, const void *value)
+{
+    uint32_t size = MAX_PROPERTY_SIZE[type];
+    if (type == PROPERTY_TYPE_BUFFER || type == PROPERTY_TYPE_STRING)
+        return size + *(uint16_t *)value;
+    return size;
+}
+
 uint32_t property_iterator(uint32_t addr, uint32_t offset, uint8_t *property, uint8_t *type)
 {
     uint32_t length = block_size(addr);
@@ -594,7 +602,7 @@ int property_compare(uint32_t addr, uint8_t property, uint16_t offset, const voi
             }
             else if (PROPERTY_TYPE_BIT == type)
             {
-                uint8_t i, v1, v2 = *(uint8_t *)value;
+                uint8_t v1, v2 = *(uint8_t *)value;
                 if (offset || !size)
                     return 1;
                 block_read(addr, pos + 2, &v1, 1ul);

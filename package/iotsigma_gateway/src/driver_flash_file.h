@@ -2,17 +2,16 @@
 #define __DRIVER_FLASH_FILE_H__
 
 #include "env.h"
-#include "interface_flash.h"
 
 #ifdef __cplusplus
 extern "C"
 {
 #endif
 
-#if defined(PLATFORM_OPENWRT)
+#if defined(PLATFORM_LINUX)
 
-void flash_file_init(const char *space);
-void flash_file_space(const HalFlashSpace *space);
+void flash_file_init(void);
+void flash_file_space(const uint8_t *space);
 
 uint32_t flash_file_bulk(void);
 uint32_t flash_file_unit(void);

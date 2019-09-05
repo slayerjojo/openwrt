@@ -37,10 +37,9 @@ void linux_usart_update(void)
     MapIterator *it = map_iterator_create(_usart_runtimes);
     while (map_iterator_next(it))
     {
-        int fp = (int)map_iterator_key(it);
         UsartRuntime *runtime = (UsartRuntime *)map_iterator_value(it);
 
-        int ret = read(fp, runtime->buffer + runtime->pos, 512 - runtime->pos);
+        int ret = read(runtime->fp, runtime->buffer + runtime->pos, 512 - runtime->pos);
         if (ret > 0 && runtime->handler)
         {
             LogAction("pos:%d ret:%d", runtime->pos, ret);
@@ -167,7 +166,7 @@ int linux_usart_open(uint8_t usart, uint32_t baud, uint32_t databit, char parity
     runtime->fp = fp;
     runtime->usart = usart;
 
-    map_add(_usart_runtimes, (const void *)&(runtime->usart), runtime);
+    map_add(_usart_runtimes, (const void *)runtime->usart, runtime);
 
     int flags = fcntl(fp, F_GETFL);
     flags |= O_NONBLOCK;
@@ -191,7 +190,7 @@ void linux_usart_close(uint8_t usart)
 
 int linux_usart_write(uint8_t usart, const uint8_t *buffer, uint16_t size)
 {
-    UsartRuntime *runtime = (UsartRuntime *)map_remove(_usart_runtimes, (void *)&usart);
+    UsartRuntime *runtime = (UsartRuntime *)map_get(_usart_runtimes, (void *)usart);
     if (!runtime)
         return 0;
     return write(runtime->fp, buffer, size);
