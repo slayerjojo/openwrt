@@ -31,6 +31,7 @@ typedef int (*SigmaRPCResponser)(void *ctx, const SigmaDomain *domain, int ret, 
 typedef struct
 {
     HeaderSigmaRPC header;
+    uint8_t response;
     uint8_t parameters[];
 }__attribute__((packed)) PacketSigmaRPCRequester;
 
@@ -54,7 +55,7 @@ typedef struct _sigma_rpc_call
     uint8_t extend[];
 }__attribute__((packed)) SigmaRPCCall;
 
-typedef int (*SigmaRPCRequester)(const SigmaDomain *domain, uint16_t opcode, uint32_t session, const void *parameter, uint16_t size);
+typedef int (*SigmaRPCRequester)(const SigmaDomain *domain, uint16_t opcode, uint32_t session, uint8_t response, const void *parameter, uint16_t size);
 
 void slr_init(void);
 void slr_update(void);

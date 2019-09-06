@@ -23,7 +23,7 @@ SigmaRPCRequesterItem *_requesters = 0;
 SigmaRPCCall *_callers = 0;
 static uint32_t _session = 1;
 
-static void slr_local_call(const SigmaDomain *domain, uint16_t opcode, uint32_t session, const void *parameter, uint16_t size)
+static void slr_local_call(const SigmaDomain *domain, uint16_t opcode, uint32_t session, uint8_t response, const void *parameter, uint16_t size)
 {
     SigmaRPCRequesterItem * req = (SigmaRPCRequesterItem *)_requesters;
     while (req)
@@ -33,7 +33,7 @@ static void slr_local_call(const SigmaDomain *domain, uint16_t opcode, uint32_t 
         req = req->_next;
     }
     if (req)
-        req->requester(domain, opcode, session, parameter, size);
+        req->requester(domain, opcode, session, response, parameter, size);
 }
 
 static void slr_monitor(const uint8_t *cluster, const uint8_t *terminal, uint8_t event, const void *parameters, uint16_t size, void *ctx)
@@ -64,7 +64,8 @@ static void slr_monitor(const uint8_t *cluster, const uint8_t *terminal, uint8_t
         }
         if (caller)
         {
-            caller->responser(caller->ctx, &domain, packet->ret, packet->result, size);
+            if (caller->responser)
+                caller->responser(caller->ctx, &domain, packet->ret, packet->result, size);
             if (prev)
                 prev->next = caller->next;
             else
@@ -76,15 +77,18 @@ static void slr_monitor(const uint8_t *cluster, const uint8_t *terminal, uint8_t
     {
         PacketSigmaRPCRequester *packet = (PacketSigmaRPCRequester *)header;
 
-        slr_local_call(&domain, header->opcode, header->session, packet->parameters, size - sizeof(EventClusterPublish) - sizeof(PacketSigmaRPCRequester));
+        slr_local_call(&domain, header->opcode, header->session, packet->response, packet->parameters, size - sizeof(EventClusterPublish) - sizeof(PacketSigmaRPCRequester));
     }
 }
 
-static int rpc_capability(const SigmaDomain *domain, uint16_t opcode, uint32_t session, const void *parameter, uint16_t size)
+static int rpc_capability(const SigmaDomain *domain, uint16_t opcode, uint32_t session, uint8_t response, const void *parameter, uint16_t size)
 {
     UNUSED(opcode);
     UNUSED(parameter);
     UNUSED(size);
+    
+    if (!response)
+        return 0;
 
     size_t count = 0;
     SigmaRPCRequesterItem *r = _requesters;
@@ -272,13 +276,13 @@ void slr_call(SigmaRPCCall *caller, SigmaRPCResponser responser, void *ctx, uint
     if (!os_memcmp(caller->domain.terminal, sll_terminal_local(), MAX_TERMINAL_ID) ||
         !os_memcmp(caller->domain.terminal, sll_src(0), MAX_TERMINAL_ID))
     {
-        slr_local_call(&domain, caller->opcode, caller->session, caller->extend + caller->size, caller->pos);
+        slr_local_call(&domain, caller->opcode, caller->session, !!responser, caller->extend + caller->size, caller->pos);
         os_free(caller);
         return;
     }
     else if (!os_memcmp(caller->domain.terminal, sll_terminal_bcast(), MAX_TERMINAL_ID))
     {
-        slr_local_call(&domain, caller->opcode, caller->session, caller->extend + caller->size, caller->pos);
+        slr_local_call(&domain, caller->opcode, caller->session, !!responser, caller->extend + caller->size, caller->pos);
     }
 
     caller->next = _callers;
@@ -287,6 +291,7 @@ void slr_call(SigmaRPCCall *caller, SigmaRPCResponser responser, void *ctx, uint
     PacketSigmaRPCRequester *req = (PacketSigmaRPCRequester *)(caller->extend + caller->size);
     req->header.opcode = network_ntohs(req->header.opcode);
     req->header.session = network_ntohl(req->header.session);
+    req->response = !!responser;
     slc_publish(caller->domain.cluster, caller->domain.terminal, CLUSTER_TYPE_RPC, req, sizeof(PacketSigmaRPCRequester) + caller->pos);
     caller = (SigmaRPCCall *)os_realloc(caller, sizeof(SigmaRPCCall) + caller->size);
 }
@@ -306,7 +311,8 @@ int slr_response(SigmaDomain *domain, int ret, uint32_t session, const void *res
         }
         if (caller)
         {
-            caller->responser(caller->ctx, domain, ret, result, size);
+            if (caller->responser)
+                caller->responser(caller->ctx, domain, ret, result, size);
             if (prev)
                 prev->next = caller->next;
             else

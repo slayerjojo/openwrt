@@ -4,10 +4,13 @@
 #include "env.h"
 #include "sigma_layer_rpc.h"
 
-#define EVENT_ENTITY_RESULT 1
-#define EVENT_ENTITY_RESULT_FAILED 2
-#define EVENT_ENTITY_RESULT_ITERATOR 3
-#define EVENT_ENTITY_RESULT_END 4
+#define EVENT_ENTITY_CREATE 1
+#define EVENT_ENTITY_ACTION 2
+#define EVENT_ENTITY_UPDATE 3
+#define EVENT_ENTITY_RELEASE 4
+#define EVENT_ENTITY_RESULT 5
+#define EVENT_ENTITY_RESULT_FAILED 6
+#define EVENT_ENTITY_RESULT_ITERATOR 7
 
 #define SLE_FLAG_SYNC 1
 
@@ -23,14 +26,7 @@ typedef struct
     uint8_t value[];
 }__attribute__((packed)) SLEValue;
 
-typedef struct
-{
-    SLEEntity entity;
-    uint8_t property;
-    SLEValue value;
-}SLEProperty;
-
-typedef int (*SigmaEntityListener)(void *ctx, int event, const SLEProperty *property);
+typedef int (*SigmaEntityListener)(void *ctx, int event, const SLEEntity *entity, uint8_t property, const SLEValue *value);
 
 void sle_init(void);
 void sle_update(void);

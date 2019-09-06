@@ -11,7 +11,7 @@ extern "C"
 #if defined(PLATFORM_LINUX)
 
 void flash_file_init(void);
-void flash_file_space(const uint8_t *space);
+int flash_file_space(const void *space);
 
 uint32_t flash_file_bulk(void);
 uint32_t flash_file_unit(void);

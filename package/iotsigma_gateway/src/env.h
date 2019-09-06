@@ -33,6 +33,9 @@ extern "C"
 
 #define UNUSED(x) (void)(x)
 
+#define max(x, y) ((x) > (y) ? (x) : (y))
+#define min(x, y) ((x) < (y) ? (x) : (y))
+
 #ifdef __cplusplus
 }
 #endif

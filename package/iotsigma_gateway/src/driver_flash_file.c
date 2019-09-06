@@ -14,11 +14,11 @@ void flash_file_init(void)
     flash_file_space((const uint8_t *)"\0\0\0\0\0\0\0\0\0\0");
 }
 
-void flash_file_space(const uint8_t *space)
+int flash_file_space(const void *space)
 {
     char file[sizeof(FLASH_FILE_PREFIX) + 6 + 4 + 1] = {0};
     strcat(file, FLASH_FILE_PREFIX);
-    bin2hex(file + strlen(FLASH_FILE_PREFIX), space, 10);
+    bin2hex(file + strlen(FLASH_FILE_PREFIX), (const uint8_t *)space, 10);
     if (_fp)
         fclose(_fp);
     _fp = fopen(file, "r+b");
@@ -28,9 +28,10 @@ void flash_file_space(const uint8_t *space)
         if (!_fp)
         {
             LogError("open flash file (%s) failed", file);
-            return;
+            return -1;
         }
     }
+    return 0;
 }
 
 uint32_t flash_file_bulk(void)
