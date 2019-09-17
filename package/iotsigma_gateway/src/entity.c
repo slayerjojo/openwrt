@@ -137,26 +137,14 @@ int entity_unpack(uint32_t *addr, uint8_t *data, uint32_t size)
             *(uint32_t *)(data + offset + 1 + 1) = endian32(*(uint32_t *)(data + offset + 1 + 1));
         else if (PROPERTY_TYPE_INT64 == data[offset + 1])
             *(uint64_t *)(data + offset + 1 + 1) = endian64(*(uint64_t *)(data + offset + 1 + 1));
-        if (data[offset + 1] <= PROPERTY_TYPE_INT64)
-        {
-            ret += property_set(addr, data[offset + 0], data[offset + 1], data + offset + 2, 8ul);
-        }
-        else if (PROPERTY_TYPE_BUFFER == data[offset + 1] || PROPERTY_TYPE_STRING == data[offset + 1])
-        {
+        else if (PROPERTY_TYPE_STRING == data[offset + 1] || PROPERTY_TYPE_BUFFER == data[offset + 1])
             *(uint16_t *)(data + offset + 1 + 1) = endian16(*(uint16_t *)(data + offset + 1 + 1));
-            ret += property_set(addr, data[offset + 0], data[offset + 1], data + offset + 1 + 1 + 2, *(uint16_t *)(data + offset + 1 + 1));
-        }
+
+        ret += property_set(addr, data[offset + 0], data[offset + 1], data + offset + 2);
+
         offset += property_skip(*addr, offset, data[offset + 1]);
     }
     return !!ret;
-}
-
-uint32_t property_value_size(uint8_t type, const void *value)
-{
-    uint32_t size = MAX_PROPERTY_SIZE[type];
-    if (type == PROPERTY_TYPE_BUFFER || type == PROPERTY_TYPE_STRING)
-        return size + *(uint16_t *)value;
-    return size;
 }
 
 uint32_t property_iterator(uint32_t addr, uint32_t offset, uint8_t *property, uint8_t *type)
@@ -199,6 +187,14 @@ uint8_t property_type(uint32_t addr, uint8_t property)
     return 0xff;
 }
 
+uint32_t property_length(uint8_t type, const void *value)
+{
+    uint32_t size = MAX_PROPERTY_SIZE[type];
+    if (type == PROPERTY_TYPE_BUFFER || type == PROPERTY_TYPE_STRING)
+        return size + *(uint16_t *)value;
+    return size;
+}
+
 uint32_t property_size(uint32_t addr, uint8_t property)
 {
     uint32_t length = block_size(addr);
@@ -225,7 +221,7 @@ uint32_t property_size(uint32_t addr, uint8_t property)
             {
                 uint16_t size;
                 block_read(addr, offset + 2, &size, 2ul);
-                return size;
+                return 2 + size;
             }
             else
             {
@@ -237,196 +233,24 @@ uint32_t property_size(uint32_t addr, uint8_t property)
     return 0;
 }
 
-int property_set(uint32_t *addr, uint8_t property, uint8_t type, const void *value, uint32_t size)
+void property_pack(uint8_t type, void *value)
 {
-    uint8_t alloc = 0;
-    uint32_t length = block_size(*addr);
-    uint32_t ap = 0;
-    uint32_t pos = 3;
-    uint32_t offset = 3;
-    if (PROPERTY_ENTITY_TYPE == property)
-    {
-        if (!block_conflict(*addr, 0ul, value, 1ul))
-        {
-            if (!block_compare(*addr, 0ul, value, 1ul))
-                return 0;
-            block_write(*addr, 0ul, value, 1ul);
-            return 1;
-        }
-        else
-        {
-            alloc = 1;
-        }
-    }
-    else if (PROPERTY_ENTITY_ID == property)
-    {
-        if (!block_conflict(*addr, 1ul, value, 2ul))
-        {
-            if (!block_compare(*addr, 1ul, value, 2ul))
-                return 0;
-            block_write(*addr, 1ul, value, 2ul);
-            return 1;
-        }
-        else
-        {
-            alloc = 1;
-        }
-    }
-    if (type <= PROPERTY_TYPE_INT64)
-        size = MAX_PROPERTY_SIZE[type];
-    while (offset < length)
-    {
-        uint8_t t;
-        block_read(*addr, offset + 0, &t, 1ul);
-        if (!t)
-            break;
-        if (t == property)
-        {
-            alloc = 1;
-            if (!block_compare(*addr, offset + 1, &type, 1ul))
-            {
-                if (PROPERTY_TYPE_BUFFER == type || PROPERTY_TYPE_STRING == type)
-                {
-                    if (!block_compare(*addr, offset + 1 + 1, &size, 2ul) &&
-                        !block_conflict(*addr, offset + 1 + 1 + 2, value, size))
-                    {
-                        block_write(*addr, offset + 1 + 1 + 2, value, size);
-                        return 1;
-                    }
-                }
-                else
-                {
-                    if (!block_conflict(*addr, offset + 1 + 1, value, size))
-                    {
-                        block_write(*addr, offset + 1 + 1, value, size);
-                        return 1;
-                    }
-                }
-            }
-        }
-        block_read(*addr, offset + 1, &t, 1ul);
-        offset += property_skip(*addr, offset, t);
-    }
-    if (!alloc)
-    {
-        switch (type)
-        {
-            case PROPERTY_TYPE_BIT:
-                *(uint8_t *)value = byte_bit_count((*(uint8_t *)value)) % 2;
-            case PROPERTY_TYPE_INT8: 
-            case PROPERTY_TYPE_INT16:
-            case PROPERTY_TYPE_INT32:
-            case PROPERTY_TYPE_INT48:
-            case PROPERTY_TYPE_INT64:
-            {
-                if (offset + 1 + 1 + size < length)
-                {
-                    block_write(*addr, offset + 0, &property, 1ul);
-                    block_write(*addr, offset + 1, &type, 1ul);
-                    block_write(*addr, offset + 2, value, size);
-                    return 1;
-                }
-                break;
-            }
-            case PROPERTY_TYPE_STRING:
-            case PROPERTY_TYPE_BUFFER:
-            {
-                if (offset + 1 + 1 + 2 + size < length)
-                {
-                    block_write(*addr, offset + 0, &property, 1ul);
-                    block_write(*addr, offset + 1, &type, 1ul);
-                    block_write(*addr, offset + 2, &size, 2ul);
-                    block_write(*addr, offset + 4, value, size);
-                    return 1;
-                }
-                break;
-            }
-            default:
-            {
-                LogError("unknown type(%d)", type);
-                return 0;
-            }
-        }
-    }
+    if (type == PROPERTY_TYPE_INT16 || type == PROPERTY_TYPE_BUFFER || type == PROPERTY_TYPE_STRING)
+        *(uint16_t *)value = endian16(*(uint16_t *)value);
+    else if (type == PROPERTY_TYPE_INT32)
+        *(uint32_t *)value = endian32(*(uint32_t *)value);
+    else if (type == PROPERTY_TYPE_INT64)
+        *(uint64_t *)value = endian64(*(uint64_t *)value);
+}
 
-    if (PROPERTY_ENTITY_ID == property)
-    {
-        ap = block_alloc(offset);
-        block_copy(ap, 0ul, *addr, 0ul, 1ul);
-        block_write(ap, 1ul, value, 2ul);
-    }
-    else if (PROPERTY_ENTITY_TYPE == property)
-    {
-        ap = block_alloc(offset);
-        block_write(ap, 0ul, value, 1ul);
-        block_copy(ap, 1ul, *addr, 1ul, 2ul);
-    }
-    else if (PROPERTY_TYPE_STRING == type || PROPERTY_TYPE_BUFFER == type)
-    {
-        ap = block_alloc(offset + 1 + 1 + 2 + size);
-        block_copy(ap, 0ul, *addr, 0ul, 3ul);
-    }
-    else
-    {
-        ap = block_alloc(offset + 1 + 1 + size);
-        block_copy(ap, 0ul, *addr, 0ul, 3ul);
-    }
-
-    length = offset;
-    offset = 3;
-    pos = 3;
-    while (pos < length)
-    {
-        uint8_t p;
-        uint8_t t;
-        block_read(*addr, pos + 0, &p, 1ul);
-        if (!p)
-            break;
-        block_read(*addr, pos + 1, &t, 1ul);
-        if (p != property)
-        {
-            block_write(ap, offset + 0, &p, 1ul);
-            block_write(ap, offset + 1, &t, 1ul);
-
-            if (PROPERTY_TYPE_BIT == t)
-            {
-                block_read(*addr, pos + 2, &p, 1ul);
-                p = byte_bit_count(p) % 2;
-                block_write(ap, offset + 2, &p, 1ul);
-            }
-            else if (t <= PROPERTY_TYPE_INT64)
-            {
-                block_copy(ap, offset + 2, *addr, pos + 2, (uint32_t)MAX_PROPERTY_SIZE[t]);
-            }
-            else if (PROPERTY_TYPE_STRING == t || PROPERTY_TYPE_BUFFER == t)
-            {
-                uint16_t l;
-                block_read(*addr, pos + 2, &l, 2ul);
-
-                block_write(ap, offset + 2, &l, 2ul);
-                block_copy(ap, offset + 2 + 2, *addr, pos + 2 + 2, (uint32_t)l);
-            }
-            offset += property_skip(*addr, pos, t);
-        }
-        pos += property_skip(*addr, pos, t);
-    }
-    if (property != PROPERTY_ENTITY_TYPE && property != PROPERTY_ENTITY_ID)
-    {
-        block_write(ap, offset + 0, &property, 1ul);
-        block_write(ap, offset + 1, &type, 1ul);
-        if (PROPERTY_TYPE_STRING == type || PROPERTY_TYPE_BUFFER == type)
-        {
-            block_write(ap, offset + 2, &size, 2ul);
-            block_write(ap, offset + 4, value, size);
-        }
-        else
-        {
-            block_write(ap, offset + 2, value, size);
-        }
-    }
-    block_free(*addr);
-    *addr = ap;
-    return 1;
+void property_unpack(uint8_t type, void *value)
+{
+    if (type == PROPERTY_TYPE_INT16 || type == PROPERTY_TYPE_BUFFER || type == PROPERTY_TYPE_STRING)
+        *(uint16_t *)value = endian16(*(uint16_t *)value);
+    else if (type == PROPERTY_TYPE_INT32)
+        *(uint32_t *)value = endian32(*(uint32_t *)value);
+    else if (type == PROPERTY_TYPE_INT64)
+        *(uint64_t *)value = endian64(*(uint64_t *)value);
 }
 
 int property_release(uint32_t *addr, uint8_t property)
@@ -493,6 +317,160 @@ int property_release(uint32_t *addr, uint8_t property)
     return ret;
 }
 
+int property_set(uint32_t *addr, uint8_t property, uint8_t type, const void *value)
+{
+    uint8_t alloc = 0;
+    uint32_t length = block_size(*addr);
+    uint32_t ap = 0;
+    uint32_t pos = 3;
+    uint32_t offset = 3;
+    uint32_t size = property_length(type, value);
+
+    if (PROPERTY_ENTITY_TYPE == property)
+    {
+        if (!block_conflict(*addr, 0ul, value, 1ul))
+        {
+            if (!block_compare(*addr, 0ul, value, 1ul))
+                return 0;
+            block_write(*addr, 0ul, value, 1ul);
+            return 1;
+        }
+        else
+        {
+            alloc = 1;
+        }
+    }
+    else if (PROPERTY_ENTITY_ID == property)
+    {
+        if (!block_conflict(*addr, 1ul, value, 2ul))
+        {
+            if (!block_compare(*addr, 1ul, value, 2ul))
+                return 0;
+            block_write(*addr, 1ul, value, 2ul);
+            return 1;
+        }
+        else
+        {
+            alloc = 1;
+        }
+    }
+    while (offset < length)
+    {
+        uint8_t t;
+        block_read(*addr, offset + 0, &t, 1ul);
+        if (!t)
+            break;
+        if (t == property)
+        {
+            alloc = 1;
+            if (!block_compare(*addr, offset + 1, &type, 1ul) &&
+                !block_conflict(*addr, offset + 1 + 1, value, size))
+            {
+                block_write(*addr, offset + 1 + 1, value, size);
+                return 1;
+            }
+        }
+        block_read(*addr, offset + 1, &t, 1ul);
+        offset += property_skip(*addr, offset, t);
+    }
+    if (!alloc)
+    {
+        switch (type)
+        {
+            case PROPERTY_TYPE_BIT:
+                *(uint8_t *)value = byte_bit_count((*(uint8_t *)value)) % 2;
+            case PROPERTY_TYPE_INT8: 
+            case PROPERTY_TYPE_INT16:
+            case PROPERTY_TYPE_INT32:
+            case PROPERTY_TYPE_INT48:
+            case PROPERTY_TYPE_INT64:
+            case PROPERTY_TYPE_STRING:
+            case PROPERTY_TYPE_BUFFER:
+            {
+                if (offset + 1 + 1 + size < length)
+                {
+                    block_write(*addr, offset + 0, &property, 1ul);
+                    block_write(*addr, offset + 1, &type, 1ul);
+                    block_write(*addr, offset + 2, value, size);
+                    return 1;
+                }
+                break;
+            }
+            default:
+            {
+                LogError("unknown type(%d)", type);
+                return 0;
+            }
+        }
+    }
+
+    if (PROPERTY_ENTITY_ID == property)
+    {
+        ap = block_alloc(offset);
+        block_copy(ap, 0ul, *addr, 0ul, 1ul);
+        block_write(ap, 1ul, value, 2ul);
+    }
+    else if (PROPERTY_ENTITY_TYPE == property)
+    {
+        ap = block_alloc(offset);
+        block_write(ap, 0ul, value, 1ul);
+        block_copy(ap, 1ul, *addr, 1ul, 2ul);
+    }
+    else
+    {
+        ap = block_alloc(offset + 1 + 1 + size);
+        block_copy(ap, 0ul, *addr, 0ul, 3ul);
+    }
+
+    length = offset;
+    offset = 3;
+    pos = 3;
+    while (pos < length)
+    {
+        uint8_t p;
+        uint8_t t;
+        block_read(*addr, pos + 0, &p, 1ul);
+        if (!p)
+            break;
+        block_read(*addr, pos + 1, &t, 1ul);
+        if (p != property)
+        {
+            block_write(ap, offset + 0, &p, 1ul);
+            block_write(ap, offset + 1, &t, 1ul);
+
+            if (PROPERTY_TYPE_BIT == t)
+            {
+                block_read(*addr, pos + 2, &p, 1ul);
+                p = byte_bit_count(p) % 2;
+                block_write(ap, offset + 2, &p, 1ul);
+            }
+            else if (t <= PROPERTY_TYPE_INT64)
+            {
+                block_copy(ap, offset + 2, *addr, pos + 2, (uint32_t)MAX_PROPERTY_SIZE[t]);
+            }
+            else if (PROPERTY_TYPE_STRING == t || PROPERTY_TYPE_BUFFER == t)
+            {
+                uint16_t l;
+                block_read(*addr, pos + 2, &l, 2ul);
+
+                block_write(ap, offset + 2, &l, 2ul);
+                block_copy(ap, offset + 2 + 2, *addr, pos + 2 + 2, (uint32_t)l);
+            }
+            offset += property_skip(*addr, pos, t);
+        }
+        pos += property_skip(*addr, pos, t);
+    }
+    if (property != PROPERTY_ENTITY_TYPE && property != PROPERTY_ENTITY_ID)
+    {
+        block_write(ap, offset + 0, &property, 1ul);
+        block_write(ap, offset + 1, &type, 1ul);
+        block_write(ap, offset + 2, value, size);
+    }
+    block_free(*addr);
+    *addr = ap;
+    return 1;
+}
+
 int property_get(uint32_t addr, uint8_t property, uint16_t offset, void *value, uint32_t size)
 {
     uint32_t pos = 3;
@@ -540,11 +518,11 @@ int property_get(uint32_t addr, uint8_t property, uint16_t offset, void *value, 
             {
                 uint16_t l;
                 block_read(addr, pos + 2, &l, 2ul);
-                if (offset > l)
+                if (offset > 2 + l)
                     return 0;
-                if (offset + size > l)
-                    size = l - offset;
-                block_read(addr, pos + 4 + offset, value, size);
+                if (offset + size > 2 + l)
+                    size = 2 + l - offset;
+                block_read(addr, pos + 2 + offset, value, size);
                 return size;
             }
         }
@@ -593,14 +571,7 @@ int property_compare(uint32_t addr, uint8_t property, uint16_t offset, const voi
         block_read(addr, pos + 1, &type, 1ul);
         if (p == property)
         {
-            if (PROPERTY_TYPE_BUFFER == type || PROPERTY_TYPE_STRING == type)
-            {
-                int ret = block_compare(addr, pos + 2, &size, 2ul);
-                if (ret)
-                    return ret;
-                return block_compare(addr, pos + 4 + offset, value, size);
-            }
-            else if (PROPERTY_TYPE_BIT == type)
+            if (PROPERTY_TYPE_BIT == type)
             {
                 uint8_t v1, v2 = *(uint8_t *)value;
                 if (offset || !size)
@@ -649,7 +620,7 @@ int property_bit_set(uint32_t *addr, uint8_t property)
     if (0xff == value)
         value = 0;
     value = (value << 1) | 1;
-    return property_set(addr, property, PROPERTY_TYPE_BIT, &value, 1ul);
+    return property_set(addr, property, PROPERTY_TYPE_BIT, &value);
 }
 
 int property_bit_clear(uint32_t *addr, uint8_t property)
@@ -666,5 +637,5 @@ int property_bit_clear(uint32_t *addr, uint8_t property)
         return 0;
     
     value = (value << 1) | 1;
-    return property_set(addr, property, PROPERTY_TYPE_BIT, &value, 1ul);
+    return property_set(addr, property, PROPERTY_TYPE_BIT, &value);
 }

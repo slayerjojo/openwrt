@@ -1,4 +1,6 @@
 #include "sigma_event.h"
+#include "buddha_heap.h"
+#include "heap_mark.h"
 
 static uint32_t _sequence = 1;
 

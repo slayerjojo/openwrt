@@ -64,7 +64,7 @@ static void slr_monitor(const uint8_t *cluster, const uint8_t *terminal, uint8_t
         }
         if (caller)
         {
-            if (caller->responser)
+            if (!caller->abort && caller->responser)
                 caller->responser(caller->ctx, &domain, packet->ret, packet->result, size);
             if (prev)
                 prev->next = caller->next;
@@ -311,7 +311,7 @@ int slr_response(SigmaDomain *domain, int ret, uint32_t session, const void *res
         }
         if (caller)
         {
-            if (caller->responser)
+            if (!caller->abort && caller->responser)
                 caller->responser(caller->ctx, domain, ret, result, size);
             if (prev)
                 prev->next = caller->next;

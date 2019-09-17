@@ -1,8 +1,8 @@
-#include "sigma_layer_shadow.h"
+#include "sigma_sublayer_entity_shadow.h"
 #include "interface_flash.h"
 #include "entity.h"
 
-static int sls_monitor(void *ctx, int event, const SLEEntity *entity, uint8_t property, const SLEValue *value)
+static int sses_monitor(void *ctx, int event, const SLEEntity *entity, uint8_t property, const SLEValue *value)
 {
     UNUSED(ctx);
 
@@ -43,16 +43,16 @@ static int sls_monitor(void *ctx, int event, const SLEEntity *entity, uint8_t pr
     return 0;
 }
 
-void sls_init(void)
+void sses_init(void)
 {
-    sle_listen(sls_monitor, 0);
+    sle_listen(sses_monitor, 0);
 }
 
-void sls_update(void)
+void sses_update(void)
 {
 }
 
-int sls_read(const SLEEntity *entity, uint8_t property, SLEValue *value, SigmaEntityListener resp, void *ctx)
+int sses_read(const SLEEntity *entity, uint8_t property, SLEValue *value, SigmaEntityListener resp, void *ctx)
 {
     if (flash_space(entity->domain) < 0)
         return sle_read(entity, property, value, resp, ctx);
@@ -78,10 +78,10 @@ int sls_read(const SLEEntity *entity, uint8_t property, SLEValue *value, SigmaEn
     return 0;
 }
 
-void sls_iterator(const SigmaDomain *domain, uint8_t type, SigmaEntityListener resp, void *ctx)
+void sses_iterator(const SigmaDomain *domain, uint8_t type, SigmaEntityListener resp, void *ctx)
 {
     if (flash_space(domain) < 0)
-        return sls_iterator(domain, type, resp, ctx);
+        return sses_iterator(domain, type, resp, ctx);
 
     SLEEntity entity;
     entity.domain = domain;

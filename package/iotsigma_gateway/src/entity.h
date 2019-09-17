@@ -34,13 +34,20 @@ uint32_t entity_size(uint32_t addr);
 uint32_t entity_pack(uint32_t addr, uint8_t *data, uint32_t size);
 int entity_unpack(uint32_t *addr, uint8_t *data, uint32_t size);
 
-uint32_t property_value_size(uint8_t type, const void *value);
 uint32_t property_iterator(uint32_t addr, uint32_t offset, uint8_t *property, uint8_t *type);
+
 uint8_t property_type(uint32_t addr, uint8_t property);
+
+uint32_t property_length(uint8_t type, const void *value);
 uint32_t property_size(uint32_t addr, uint8_t property);
-int property_set(uint32_t *addr, uint8_t property, uint8_t type, const void *value, uint32_t size);
+
+void property_pack(uint8_t type, void *value);
+void property_unpack(uint8_t type, void *value);
+
 int property_release(uint32_t *addr, uint8_t property);
+int property_set(uint32_t *addr, uint8_t property, uint8_t type, const void *value);
 int property_get(uint32_t addr, uint8_t property, uint16_t offset, void *value, uint32_t size);
+
 bool property_exist(uint32_t addr, uint8_t property);
 int property_compare(uint32_t addr, uint8_t property, uint16_t offset, const void *value, uint32_t size);
 int property_bit_get(uint32_t addr, uint8_t property);
