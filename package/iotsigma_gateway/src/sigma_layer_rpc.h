@@ -69,23 +69,7 @@ void *slr_parameter(SigmaRPCCall *caller);
 
 void slr_abort(SigmaRPCCall *caller);
 
-void slr_push_byte(const void **parameter, uint8_t value);
-void slr_push_short(const void **parameter, uint16_t value);
-void slr_push_int(const void **parameter, uint32_t value);
-void slr_push_long(const void **parameter, uint64_t value);
-void slr_push_float(const void **parameter, double value);
-void slr_push_buffer(const void **parameter, const void *value, uint16_t size);
-void slr_push_array(const void **parameter, uint16_t count);
-
-uint8_t slr_pop_byte(const void **parameter);
-uint16_t slr_pop_short(const void **parameter);
-uint32_t slr_pop_int(const void **parameter);
-uint64_t slr_pop_long(const void **parameter);
-double slr_pop_float(const void **parameter);
-uint16_t slr_pop_buffer(const void **parameter, void **result);
-uint16_t slr_pop_array(const void **parameter);
-
-void slr_call(SigmaRPCCall *caller, SigmaRPCResponser responser, void *ctx, uint32_t timeout);
+void slr_call(SigmaRPCCall *caller, uint32_t timeout, SigmaRPCResponser responser, void *ctx);
 int slr_response(const SigmaDomain *domain, int ret, uint32_t session, const void *result, uint16_t size);
 
 #ifdef __cplusplus

@@ -14,7 +14,11 @@
 
 typedef struct
 {
-    SLEValue *value;
+    union
+    {
+        SLEValue *value;
+        SLEEntity *entity;
+    }imm;
     SigmaEntityListener resp;
     void *ctx;
 }EntityListenerContext;
@@ -265,8 +269,13 @@ typedef struct _sigma_entity_iterator
 
     SigmaDomain domain;
 
+    uint8_t manual;
+
     uint8_t type;
     uint32_t session;
+
+    uint32_t *last;
+    SLEEntity *result;
 
     SigmaEntityListener resp;
     void *ctx;
@@ -551,7 +560,7 @@ typedef struct
 {
     uint16_t entity;
     uint8_t action;
-    uint8_t parameter[];
+    SLEValue parameter;
 }__attribute__((packed)) ParameterEntityAction;
 
 static int rpc_entity_action(const SigmaDomain *domain, uint16_t opcode, uint32_t session, uint8_t response, const void *parameter, uint16_t size)
@@ -565,20 +574,11 @@ static int rpc_entity_action(const SigmaDomain *domain, uint16_t opcode, uint32_
     entity.domain = domain;
     entity.entity = p->entity;
 
-    SLEValue *value = (SLEValue *)os_malloc(sizeof(SLEValue) + 2 + size);
-    if (value)
+    SigmaEntityListeners *listener = _listeners;
+    while (listener)
     {
-        value->type = PROPERTY_TYPE_BUFFER;
-        *(uint16_t *)value->value = size - sizeof(ParameterEntityAction);
-        os_memcpy(value->value + 2, parameter, size - sizeof(ParameterEntityAction));
-
-        SigmaEntityListeners *listener = _listeners;
-        while (listener)
-        {
-            listener->listener(listener->ctx, EVENT_ENTITY_ACTION, &entity, p->action, value);
-            listener = listener->next;
-        }
-        os_free(value);
+        listener->listener(listener->ctx, EVENT_ENTITY_ACTION, &entity, p->action, &p->parameter);
+        listener = listener->next;
     }
     if (response)
         slr_response(domain, RET_RPC_SUCCESS, session, 0, 0);
@@ -707,25 +707,26 @@ static int responser_create(void *ctx, const SigmaDomain *domain, int ret, const
 
     SLEEntity entity;
     entity.domain = domain;
-    entity.entity = network_ntohs(r->entity);
+    entity.entity = r->entity;
 
-    uint8_t buffer[sizeof(SLEValue) + sizeof(uint16_t)] = {0};
-    SLEValue *value = (SLEValue *)buffer;
-    value->type = PROPERTY_TYPE_INT16;
-    *(uint16_t *)value->value = r->entity;
-
-    if (context->value)
-        os_memcpy(&context->value, value, sizeof(SLEValue) + sizeof(uint16_t));
+    if (context->imm.entity)
+    {
+        context->imm.entity->domain = domain;
+        context->imm.entity->entity = r->entity;
+    }
     
     if (context->resp)
-        context->resp(context->ctx, EVENT_ENTITY_RESULT, &entity, PROPERTY_ENTITY_ID, value);
+    {
+        SLE_VALUE_DEF_16(value, r->entity);
+        context->resp(context->ctx, EVENT_ENTITY_RESULT, &entity, PROPERTY_ENTITY_ID, (SLEValue *)&value);
+    }
 
     return 0;
 }
 
-int sle_create(const SigmaDomain *domain, uint8_t type, uint16_t size, SLEValue *value, SigmaEntityListener resp, void *ctx)
+int sle_create(const SigmaDomain *domain, uint8_t type, uint16_t size, SLEEntity *entity, SigmaEntityListener resp, void *ctx)
 {
-    SigmaRPCCall *caller = slr_create(domain, OPCODE_RPC_ENTITY_CREATE, sizeof(ParameterEntityCreate), (value || resp) ? sizeof(EntityListenerContext) : 0);
+    SigmaRPCCall *caller = slr_create(domain, OPCODE_RPC_ENTITY_CREATE, sizeof(ParameterEntityCreate), (entity || resp) ? sizeof(EntityListenerContext) : 0);
     if (!caller)
         return -1;
 
@@ -734,10 +735,10 @@ int sle_create(const SigmaDomain *domain, uint8_t type, uint16_t size, SLEValue 
     p->size = network_htons(size);
 
     EntityListenerContext *extend = 0;
-    if (value || resp)
+    if (entity || resp)
     {
         extend = (EntityListenerContext *)slr_extend(caller);
-        extend->value = value;
+        extend->imm.entity = entity;
         extend->resp = resp;
         extend->ctx = ctx;
     }
@@ -780,7 +781,7 @@ int sle_release(const SLEEntity *entity, SigmaEntityListener resp, void *ctx)
     if (resp)
     {
         extend = (EntityListenerContext *)slr_extend(caller);
-        extend->value = 0;
+        extend->imm.value = 0;
         extend->resp = resp;
         extend->ctx = ctx;
     }
@@ -824,7 +825,7 @@ int sle_write(const SLEEntity *entity, uint8_t property, const SLEValue *value, 
     if (resp)
     {
         extend = (EntityListenerContext *)slr_extend(caller);
-        extend->value = 0;
+        extend->imm.value = 0;
         extend->resp = resp;
         extend->ctx = ctx;
     }
@@ -852,22 +853,14 @@ static int responser_read(void *ctx, const SigmaDomain *domain, int ret, const v
     entity.domain = domain;
     entity.entity = r->entity;
 
-    SLEValue *value = (SLEValue *)os_malloc(sizeof(SLEValue) + size - sizeof(ResultEntityRead));
-    if (!value)
+    if (context->imm.value)
     {
-        if (context->resp)
-            ret = context->resp(context->ctx, EVENT_ENTITY_RESULT_FAILED, 0, 0, 0);
-        return -1;
+        context->imm.value->type = r->value.type;
+        os_memcpy(context->imm.value->value, r->value.value, size - sizeof(ResultEntityRead));
     }
-    value->type = r->value.type;
-    os_memcpy(value->value, r->value.value, size - sizeof(ResultEntityRead));
-
-    if (context->value)
-        os_memcpy(&context->value, value, sizeof(SLEValue) + size - sizeof(ResultEntityRead));
     
     if (context->resp)
-        context->resp(context->ctx, EVENT_ENTITY_RESULT, &entity, r->property, value);
-    os_free(value);
+        context->resp(context->ctx, EVENT_ENTITY_RESULT, &entity, r->property, &r->value);
     return 0;
 }
 
@@ -881,10 +874,10 @@ int sle_read(const SLEEntity *entity, uint8_t property, SLEValue *value, SigmaEn
     p->property = property;
 
     EntityListenerContext *extend = 0;
-    if (extend)
+    if (value || resp)
     {
         extend = (EntityListenerContext *)slr_extend(caller);
-        extend->value = value;
+        extend->imm.value = value;
         extend->resp = resp;
         extend->ctx = ctx;
     }
@@ -912,21 +905,22 @@ static int responser_action(void *ctx, const SigmaDomain *domain, int ret, const
     return 0;
 }
 
-int sle_action(const SLEEntity *entity, uint8_t action, uint8_t *parameter, uint16_t size, SigmaEntityListener resp, void *ctx)
+int sle_action(const SLEEntity *entity, uint8_t action, const SLEValue *parameter, SigmaEntityListener resp, void *ctx)
 {
-    SigmaRPCCall *caller = slr_create(entity->domain, OPCODE_RPC_ENTITY_ACTION, sizeof(ParameterEntityAction) + size, resp ? sizeof(EntityListenerContext) : 0);
+    SigmaRPCCall *caller = slr_create(entity->domain, OPCODE_RPC_ENTITY_ACTION, sizeof(ParameterEntityAction) + property_length(parameter->type, parameter->value), resp ? sizeof(EntityListenerContext) : 0);
     if (!caller)
         return -1;
     ParameterEntityAction *p = (ParameterEntityAction *)slr_parameter(caller);
     p->action = action;
     p->entity = network_htons(entity->entity);
-    os_memcpy(p->parameter, parameter, size);
+    p->parameter.type = parameter->type;
+    os_memcpy(p->parameter.value, parameter->value, property_length(parameter->type, parameter->value));
 
     EntityListenerContext *extend = 0;
     if (resp)
     {
         extend = (EntityListenerContext *)slr_extend(caller);
-        extend->value = 0;
+        extend->imm.value = 0;
         extend->resp = resp;
         extend->ctx = ctx;
     }
@@ -967,11 +961,8 @@ static int responser_iterator(void *ctx, const SigmaDomain *domain, int ret, con
     return 0;
 }
 
-uint32_t sle_iterator_create(const SigmaDomain *domain, uint8_t type, SigmaEntityListener resp, void *ctx)
+uint32_t sle_iterator_create(const SigmaDomain *domain, uint8_t type, uint8_t manual)
 {
-    if (!resp)
-        return 0;
-
     SigmaEntityIterator *it = (SigmaEntityIterator *)os_malloc(sizeof(SigmaEntityIterator));
     if (!it)
         return 0;
@@ -980,13 +971,15 @@ uint32_t sle_iterator_create(const SigmaDomain *domain, uint8_t type, SigmaEntit
     it->next = _iterators;
     _iterators = it;
 
-    os_memcpy(&it->domain, domain, sizeof(SigmaDomain));
+    if (domain)
+        os_memcpy(&it->domain, domain, sizeof(SigmaDomain));
+    else
+        os_memset(&it->domain, 0, sizeof(SigmaDomain));
+
+    it->manual = manual;
 
     it->type = type;
     it->session = _session_iterator++;
-
-    it->resp = resp;
-    it->ctx = ctx;
 
     it->timer = os_ticks();
 
@@ -1084,6 +1077,9 @@ static int responser_iterator_execute(void *ctx, const SigmaDomain *domain, int 
 
     if (0 == r->addr)
     {
+        if (it->last)
+            *(it->last) = r->addr;
+
         if (it->resp)
             it->resp(it->ctx, EVENT_ENTITY_FINISHED, 0, 0, 0);
 
@@ -1102,19 +1098,36 @@ static int responser_iterator_execute(void *ctx, const SigmaDomain *domain, int 
         entity.domain = domain;
         entity.entity = r->entity;
 
+        if (it->last)
+            *(it->last) = r->addr;
+
+        if (it->result)
+        {
+            if (it->result)
+            {
+                it->result->domain = domain;
+                it->result->entity = entity.entity;
+            }
+        }
+
         int ret = 0;
         if (it->resp)
             ret = it->resp(it->ctx, EVENT_ENTITY_RESULT, &entity, r->property, &r->value);
         if (ret)
+        {
             sle_iterator_release(it->session);
-        else
-            sle_iterator_execute(it->session, r->addr);
+            return 1;
+        }
+        else if (!it->manual)
+        {
+            sle_iterator_execute(it->session, it->last, it->result, it->resp, it->ctx);
+        }
     }
 
     return 0;
 }
 
-int sle_iterator_execute(uint32_t session, uint32_t last)
+int sle_iterator_execute(uint32_t session, uint32_t *last, SLEEntity *result, SigmaEntityListener resp, void *ctx)
 {
     SigmaEntityIterator *it = _iterators;
     while (it && it->session != session)
@@ -1122,13 +1135,18 @@ int sle_iterator_execute(uint32_t session, uint32_t last)
     if (!it)
         return -1;
 
+    it->last = last;
+    it->result = result;
+    it->resp = resp;
+    it->ctx = ctx;
+
     SigmaRPCCall *caller = slr_create(&it->domain, OPCODE_RPC_ENTITY_ITERATOR_EXECUTE, sizeof(ParameterEntityIteratorExecute), 0);
     if (!caller)
         return -1;
 
     ParameterEntityIteratorExecute *p = (ParameterEntityIteratorExecute *)slr_parameter(caller);
     p->session = network_htonl(session);
-    p->last = network_htonl(last);
+    p->last = network_htonl(*last);
     
     slr_call(caller, responser_iterator_execute, it, TIMEOUT_ENTITY_RPC);
     return 0;

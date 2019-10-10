@@ -1,5 +1,5 @@
 #include "buddha_heap.h"
-#include "log.h"
+#include "sigma_log.h"
 
 #undef BUDDHA_HEAP_DEBUG
 

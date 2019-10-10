@@ -29,7 +29,7 @@ typedef struct _sigma_mission
 void sigma_mission_init(void);
 void sigma_mission_update(void);
 
-SigmaMission *sigma_mission_create(SigmaMissionHandler handler, void *ctx, size_t size);
+SigmaMission *sigma_mission_create(SigmaMissionHandler handler, void *ctx, size_t extends);
 void sigma_mission_release(SigmaMission *mission);
 
 void sigma_mission_done(SigmaMission *mission);

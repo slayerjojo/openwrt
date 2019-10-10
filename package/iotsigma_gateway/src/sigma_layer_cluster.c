@@ -5,7 +5,7 @@
 #include "interface_os.h"
 #include "interface_crypto.h"
 #include "driver_linux.h"
-#include "log.h"
+#include "sigma_log.h"
 #include "aes.h"
 
 #define MAX_RETRY_CLUSTER (5)
@@ -14,66 +14,66 @@ typedef struct
 {
     uint8_t opcode;
     uint8_t cluster[MAX_CLUSTER_ID];
-}__attribute__((packed)) HeaderSigmaLayerCluster;
+}__attribute__((packed)) HeaderSLCluster;
 
 typedef struct
 {
-    HeaderSigmaLayerCluster header;
-}__attribute__((packed)) PacketSigmaLayerClusterJoin;
+    HeaderSLCluster header;
+}__attribute__((packed)) PacketSLClusterJoin;
 
 typedef struct
 {
-    HeaderSigmaLayerCluster header;
-}__attribute__((packed)) PacketSigmaLayerClusterLeave;
+    HeaderSLCluster header;
+}__attribute__((packed)) PacketSLClusterLeave;
 
 typedef struct
 {
-    HeaderSigmaLayerCluster header;
+    HeaderSLCluster header;
     uint32_t session;
     uint8_t key[MAX_CRYPTO_PUBLIC];
     uint8_t cluster[MAX_CLUSTER_ID];
     uint8_t pin[MAX_CLUSTER_PIN + 16];
-}__attribute__((packed)) PacketSigmaLayerClusterInvite;
+}__attribute__((packed)) PacketSLClusterInvite;
 
 typedef struct
 {
-    HeaderSigmaLayerCluster header;
+    HeaderSLCluster header;
     uint32_t session;
     int code;
-}__attribute__((packed)) PacketSigmaLayerClusterReject;
+}__attribute__((packed)) PacketSLClusterReject;
 
 typedef struct
 {
-    HeaderSigmaLayerCluster header;
+    HeaderSLCluster header;
     uint32_t session;
-}__attribute__((packed)) PacketSigmaLayerClusterAccept;
+}__attribute__((packed)) PacketSLClusterAccept;
 
 typedef struct
 {
-    HeaderSigmaLayerCluster header;
+    HeaderSLCluster header;
     uint16_t type;
     uint16_t interval;
-}__attribute__((packed)) PacketSigmaLayerClusterDiscover;
+}__attribute__((packed)) PacketSLClusterDiscover;
 
 typedef struct
 {
-    HeaderSigmaLayerCluster header;
+    HeaderSLCluster header;
     uint16_t type;
     uint8_t key[MAX_CRYPTO_PUBLIC];
-}__attribute__((packed)) PacketSigmaLayerClusterDeclare;
+}__attribute__((packed)) PacketSLClusterDeclare;
 
 typedef struct
 {
-    HeaderSigmaLayerCluster header;
+    HeaderSLCluster header;
     uint8_t type;
     uint8_t payload[];
-}__attribute__((packed)) PacketSigmaLayerClusterPublish;
+}__attribute__((packed)) PacketSLClusterPublish;
 
 typedef struct cluster_listener
 {
     struct cluster_listener *next;
 
-    SigmaLayerClusterListener listener;
+    SLClusterListener listener;
     void *ctx;
 }ClusterListener;
 
@@ -102,13 +102,13 @@ void slc_init(void)
 void slc_update(void)
 {
     uint8_t *terminal = 0;
-    HeaderSigmaLayerCluster *header = 0;
+    HeaderSLCluster *header = 0;
     int ret = sll_recv(SLL_TYPE_CLUSTER, &terminal, (void **)&header);
     if (ret > 0)
     {
         if (OPCODE_CLUSTER_INVITE == header->opcode)
         {
-            PacketSigmaLayerClusterInvite *packet = (PacketSigmaLayerClusterInvite *)header;
+            PacketSLClusterInvite *packet = (PacketSLClusterInvite *)header;
 
             packet->session = network_ntohl(packet->session);
 
@@ -118,18 +118,18 @@ void slc_update(void)
         }
         else if (OPCODE_CLUSTER_ACCEPT == header->opcode)
         {
-            PacketSigmaLayerClusterAccept *packet = (PacketSigmaLayerClusterAccept *)header;
+            PacketSLClusterAccept *packet = (PacketSLClusterAccept *)header;
             packet->session = network_ntohl(packet->session);
         }
         else if (OPCODE_CLUSTER_REJECT == header->opcode)
         {
-            PacketSigmaLayerClusterReject *packet = (PacketSigmaLayerClusterReject *)header;
+            PacketSLClusterReject *packet = (PacketSLClusterReject *)header;
             packet->session = network_ntohl(packet->session);
             packet->code = network_ntohl(packet->code);
         }
         else if (OPCODE_CLUSTER_DISCOVER == header->opcode)
         {
-            PacketSigmaLayerClusterDiscover *packet = (PacketSigmaLayerClusterDiscover *)header;
+            PacketSLClusterDiscover *packet = (PacketSLClusterDiscover *)header;
             packet->interval = network_ntohs(packet->interval);
             packet->type = network_ntohs(packet->type);
         }
@@ -163,7 +163,7 @@ void slc_update(void)
                 event = EVENT_CLUSTER_DECLARE;
             else if (OPCODE_CLUSTER_DISCOVER == header->opcode)
             {
-                PacketSigmaLayerClusterDiscover *packet = (PacketSigmaLayerClusterDiscover *)header;
+                PacketSLClusterDiscover *packet = (PacketSLClusterDiscover *)header;
                 if (packet->type == 0xffff || packet->type == c->type)
                 {
                     c->timer_declare = os_ticks();
@@ -174,8 +174,8 @@ void slc_update(void)
             {
                 event = EVENT_CLUSTER_PUBLISH;
 
-                PacketSigmaLayerClusterPublish *packet = (PacketSigmaLayerClusterPublish *)header;
-                ret = sizeof(PacketSigmaLayerClusterPublish) + crypto_decrypto(packet + 1, packet + 1, ret - sizeof(PacketSigmaLayerClusterPublish), c->pin);
+                PacketSLClusterPublish *packet = (PacketSLClusterPublish *)header;
+                ret = sizeof(PacketSLClusterPublish) + crypto_decrypto(packet + 1, packet + 1, ret - sizeof(PacketSLClusterPublish), c->pin);
             }
 
             if (event)
@@ -186,7 +186,7 @@ void slc_update(void)
                     l->listener(
                         header->cluster, terminal, 
                         event, 
-                        header + 1, ret - sizeof(HeaderSigmaLayerCluster), 
+                        header + 1, ret - sizeof(HeaderSLCluster),
                         l->ctx);
                     l = l->next;
                 }
@@ -203,7 +203,7 @@ void slc_update(void)
             l->listener(
                 header->cluster, terminal, 
                 event, 
-                header + 1, ret - sizeof(HeaderSigmaLayerCluster),
+                header + 1, ret - sizeof(HeaderSLCluster),
                 l->ctx);
             l = l->next;
         }
@@ -215,12 +215,12 @@ const uint8_t *slc_cluster_bcast(void)
     return (const uint8_t *)"\xff\xff\xff\xff\xff\xff";
 }
 
-int slc_monitor(SigmaLayerClusterListener listener, void *ctx)
+int slc_monitor(SLClusterListener listener, void *ctx)
 {
     ClusterListener *cl = (ClusterListener *)os_malloc(sizeof(ClusterListener));
     if (!cl)
     {
-        LogError("out of memory");
+        SigmaLogError("out of memory");
         return -1;
     }
     cl->listener = listener;
@@ -228,7 +228,7 @@ int slc_monitor(SigmaLayerClusterListener listener, void *ctx)
     return 0;
 }
 
-int slc_listen(const uint8_t *cluster, SigmaLayerClusterListener listener, void *ctx)
+int slc_listen(const uint8_t *cluster, SLClusterListener listener, void *ctx)
 {
     Cluster *c = _clusters;
     while (c)
@@ -239,13 +239,13 @@ int slc_listen(const uint8_t *cluster, SigmaLayerClusterListener listener, void 
     }
     if (!c)
     {
-        LogDump(LOG_LEVEL_ERROR, "cluster not found raw:", cluster, MAX_CLUSTER_ID);
+        SigmaLogDump(LOG_LEVEL_ERROR, "cluster not found raw:", cluster, MAX_CLUSTER_ID);
         return -1;
     }
     ClusterListener *cl = (ClusterListener *)os_malloc(sizeof(ClusterListener));
     if (!cl)
     {
-        LogError("out of memory");
+        SigmaLogError("out of memory");
         return -1;
     }
     cl->listener = listener;
@@ -255,7 +255,7 @@ int slc_listen(const uint8_t *cluster, SigmaLayerClusterListener listener, void 
     return 0;
 }
 
-void slc_unlisten(const uint8_t *cluster, SigmaLayerClusterListener listener, void *ctx)
+void slc_unlisten(const uint8_t *cluster, SLClusterListener listener, void *ctx)
 {
     Cluster *c = _clusters;
     while (c)
@@ -266,7 +266,7 @@ void slc_unlisten(const uint8_t *cluster, SigmaLayerClusterListener listener, vo
     }
     if (!c)
     {
-        LogDump(LOG_LEVEL_ACTION, "cluster not found raw:", cluster, MAX_CLUSTER_ID);
+        SigmaLogDump(LOG_LEVEL_ERROR, "cluster not found raw:", cluster, MAX_CLUSTER_ID);
         return;
     }
     ClusterListener *cl = c->listeners, *prev = 0;
@@ -301,7 +301,10 @@ int slc_join(const uint8_t *cluster, const uint8_t *pin, uint16_t type)
     {
         c = (Cluster *)os_malloc(sizeof(Cluster));
         if (!c)
+        {
+            LogError("out of memory");
             return -1;
+        }
         os_memset(c, 0, sizeof(Cluster));
 
         c->next = _clusters;
@@ -312,7 +315,7 @@ int slc_join(const uint8_t *cluster, const uint8_t *pin, uint16_t type)
     c->type = type;
     os_memcpy(c->pin, pin, MAX_CLUSTER_PIN);
 
-    PacketSigmaLayerClusterJoin *packet = (PacketSigmaLayerClusterJoin *)sll_report(SLL_TYPE_CLUSTER, sizeof(PacketSigmaLayerClusterJoin), SLL_FLAG_SEND_PATH_ALL);
+    PacketSLClusterJoin *packet = (PacketSLClusterJoin *)sll_report(SLL_TYPE_CLUSTER, sizeof(PacketSLClusterJoin), SLL_FLAG_SEND_PATH_ALL);
     if (packet)
     {
         packet->header.opcode = OPCODE_CLUSTER_JOIN;
@@ -332,7 +335,10 @@ void slc_leave(const uint8_t *cluster)
         c = c->next;
     }
     if (!c)
+    {
+        SigmaLogDump(LOG_LEVEL_ERROR, "cluster not found! ", cluster, MAX_CLUSTER_ID);
         return;
+    }
     if (prev)
         prev->next = c->next;
     else
@@ -345,7 +351,7 @@ void slc_leave(const uint8_t *cluster)
     }
     os_free(c);
 
-    PacketSigmaLayerClusterLeave *packet = (PacketSigmaLayerClusterLeave *)sll_report(SLL_TYPE_CLUSTER, sizeof(PacketSigmaLayerClusterLeave), SLL_FLAG_SEND_PATH_ALL);
+    PacketSLClusterLeave *packet = (PacketSLClusterLeave *)sll_report(SLL_TYPE_CLUSTER, sizeof(PacketSLClusterLeave), SLL_FLAG_SEND_PATH_ALL);
     if (packet)
     {
         packet->header.opcode = OPCODE_CLUSTER_LEAVE;
@@ -364,9 +370,12 @@ void slc_invite(const uint8_t *cluster, const uint8_t *terminal, uint32_t sessio
         c = c->next;
     }
     if (!c)
+    {
+        SigmaLogDump(LOG_LEVEL_ERROR, "cluster not found! ", cluster, MAX_CLUSTER_ID);
         return;
+    }
 
-    PacketSigmaLayerClusterInvite *packet = (PacketSigmaLayerClusterInvite *)sll_send(SLL_TYPE_CLUSTER, terminal, sizeof(PacketSigmaLayerClusterInvite), SLL_FLAG_SEND_PATH_ALL, MAX_RETRY_CLUSTER);
+    PacketSLClusterInvite *packet = (PacketSLClusterInvite *)sll_send(SLL_TYPE_CLUSTER, terminal, sizeof(PacketSLClusterInvite), SLL_FLAG_SEND_PATH_ALL, MAX_RETRY_CLUSTER);
     if (packet)
     {
         packet->header.opcode = OPCODE_CLUSTER_INVITE;
@@ -394,9 +403,12 @@ void slc_reject(const uint8_t *cluster, const uint8_t *terminal, uint32_t sessio
         c = c->next;
     }
     if (!c)
+    {
+        SigmaLogDump(LOG_LEVEL_ERROR, "cluster not found! ", cluster, MAX_CLUSTER_ID);
         return;
+    }
 
-    PacketSigmaLayerClusterReject *packet = (PacketSigmaLayerClusterReject *)sll_send(SLL_TYPE_CLUSTER, terminal, sizeof(PacketSigmaLayerClusterReject), SLL_FLAG_SEND_PATH_ALL, MAX_RETRY_CLUSTER);
+    PacketSLClusterReject *packet = (PacketSLClusterReject *)sll_send(SLL_TYPE_CLUSTER, terminal, sizeof(PacketSLClusterReject), SLL_FLAG_SEND_PATH_ALL, MAX_RETRY_CLUSTER);
     if (packet)
     {
         packet->header.opcode = OPCODE_CLUSTER_REJECT;
@@ -419,9 +431,12 @@ void slc_accept(const uint8_t *cluster, const uint8_t *terminal, uint32_t sessio
         c = c->next;
     }
     if (!c)
+    {
+        SigmaLogDump(LOG_LEVEL_ERROR, "cluster not found! ", cluster, MAX_CLUSTER_ID);
         return;
+    }
 
-    PacketSigmaLayerClusterAccept *packet = (PacketSigmaLayerClusterAccept *)sll_send(SLL_TYPE_CLUSTER, terminal, sizeof(PacketSigmaLayerClusterAccept), SLL_FLAG_SEND_PATH_ALL, MAX_RETRY_CLUSTER);
+    PacketSLClusterAccept *packet = (PacketSLClusterAccept *)sll_send(SLL_TYPE_CLUSTER, terminal, sizeof(PacketSLClusterAccept), SLL_FLAG_SEND_PATH_ALL, MAX_RETRY_CLUSTER);
     if (packet)
     {
         packet->header.opcode = OPCODE_CLUSTER_ACCEPT;
@@ -433,15 +448,11 @@ void slc_accept(const uint8_t *cluster, const uint8_t *terminal, uint32_t sessio
 
 void slc_discover(const uint8_t *cluster, const uint8_t *terminal, uint16_t type, uint16_t interval)
 {
-    PacketSigmaLayerClusterDiscover *packet = 0;
+    PacketSLClusterDiscover *packet = 0;
     if (!os_memcmp(terminal, sll_terminal_bcast(), MAX_TERMINAL_ID))
-    {
-        packet = (PacketSigmaLayerClusterDiscover *)sll_report(SLL_TYPE_CLUSTER, sizeof(PacketSigmaLayerClusterDiscover), SLL_FLAG_SEND_PATH_ALL);
-    }
+        packet = (PacketSLClusterDiscover *)sll_report(SLL_TYPE_CLUSTER, sizeof(PacketSLClusterDiscover), SLL_FLAG_SEND_PATH_ALL);
     else
-    {
-        packet = (PacketSigmaLayerClusterDiscover *)sll_send(SLL_TYPE_CLUSTER, terminal, sizeof(PacketSigmaLayerClusterDiscover), SLL_FLAG_SEND_PATH_ALL, MAX_RETRY_CLUSTER);
-    }
+        packet = (PacketSLClusterDiscover *)sll_send(SLL_TYPE_CLUSTER, terminal, sizeof(PacketSLClusterDiscover), SLL_FLAG_SEND_PATH_ALL, MAX_RETRY_CLUSTER);
     if (packet)
     {
         packet->header.opcode = OPCODE_CLUSTER_DISCOVER;
@@ -463,17 +474,16 @@ void slc_declare(const uint8_t *cluster, const uint8_t *terminal)
         c = c->next;
     }
     if (!c)
+    {
+        SigmaLogDump(LOG_LEVEL_ERROR, "cluster not found! ", cluster, MAX_CLUSTER_ID);
         return;
+    }
 
-    PacketSigmaLayerClusterDeclare *packet = 0;
+    PacketSLClusterDeclare *packet = 0;
     if (!os_memcmp(terminal, sll_terminal_bcast(), MAX_TERMINAL_ID))
-    {
-        packet = (PacketSigmaLayerClusterDeclare *)sll_report(SLL_TYPE_CLUSTER, sizeof(PacketSigmaLayerClusterDeclare), SLL_FLAG_SEND_PATH_ALL);
-    }
+        packet = (PacketSLClusterDeclare *)sll_report(SLL_TYPE_CLUSTER, sizeof(PacketSLClusterDeclare), SLL_FLAG_SEND_PATH_ALL);
     else
-    {
-        packet = (PacketSigmaLayerClusterDeclare *)sll_send(SLL_TYPE_CLUSTER, terminal, sizeof(PacketSigmaLayerClusterDeclare), SLL_FLAG_SEND_PATH_ALL, MAX_RETRY_CLUSTER);
-    }
+        packet = (PacketSLClusterDeclare *)sll_send(SLL_TYPE_CLUSTER, terminal, sizeof(PacketSLClusterDeclare), SLL_FLAG_SEND_PATH_ALL, MAX_RETRY_CLUSTER);
     if (packet)
     {
         packet->header.opcode = OPCODE_CLUSTER_DECLARE;
@@ -495,17 +505,16 @@ int slc_publish(const uint8_t *cluster, const uint8_t *terminal, uint8_t type, c
         c = c->next;
     }
     if (!c)
+    {
+        SigmaLogDump(LOG_LEVEL_ERROR, "cluster not found! ", cluster, MAX_CLUSTER_ID);
         return -1;
+    }
 
-    PacketSigmaLayerClusterPublish *packet = 0;
+    PacketSLClusterPublish *packet = 0;
     if (!os_memcmp(terminal, sll_terminal_bcast(), MAX_TERMINAL_ID))
-    {
-        packet = (PacketSigmaLayerClusterPublish *)sll_report(SLL_TYPE_CLUSTER, sizeof(PacketSigmaLayerClusterPublish) + (size / 16 + 1) * 16, SLL_FLAG_SEND_PATH_ALL);
-    }
+        packet = (PacketSLClusterPublish *)sll_report(SLL_TYPE_CLUSTER, sizeof(PacketSLClusterPublish) + (size / 16 + 1) * 16, SLL_FLAG_SEND_PATH_ALL);
     else
-    {
-        packet = (PacketSigmaLayerClusterPublish *)sll_send(SLL_TYPE_CLUSTER, terminal, sizeof(PacketSigmaLayerClusterPublish) + (size / 16 + 1) * 16, SLL_FLAG_SEND_PATH_ALL, MAX_RETRY_CLUSTER);
-    }
+        packet = (PacketSLClusterPublish *)sll_send(SLL_TYPE_CLUSTER, terminal, sizeof(PacketSLClusterPublish) + (size / 16 + 1) * 16, SLL_FLAG_SEND_PATH_ALL, MAX_RETRY_CLUSTER);
     if (packet)
     {
         packet->header.opcode = OPCODE_CLUSTER_PUBLISH;

@@ -2,6 +2,7 @@
 #include "sigma_sublayer_link_cloud.h"
 #include "sigma_sublayer_link_lanwork.h"
 #include "sigma_opcode.h"
+#include "sigma_log.h"
 #include "buddha_heap.h"
 #include "interface_os.h"
 #include "driver_linux.h"
@@ -23,7 +24,7 @@ void sll_init(void)
 
 void sll_update(void)
 {
-    if (memcmp(_src, sll_terminal_local(), MAX_TERMINAL_ID))
+    if (os_memcmp(_src, sll_terminal_local(), MAX_TERMINAL_ID))
         ssll_update();
     sslc_update();
 }
@@ -41,7 +42,7 @@ const uint8_t *sll_terminal_local(void)
 const uint8_t *sll_src(uint8_t *src)
 {
     if (src)
-        memcpy(_src, src, MAX_TERMINAL_ID);
+        os_memcpy(_src, src, MAX_TERMINAL_ID);
     return _src;
 }
 
@@ -49,10 +50,13 @@ void *sll_send(uint8_t type, const uint8_t *dst, uint16_t size, uint8_t flags, u
 {
     uint32_t i = 0;
     uint8_t cs = 0;
-    PacketTransmitSigmaLayerLink *packet = (PacketTransmitSigmaLayerLink *)buddha_heap_alloc(sizeof(PacketTransmitSigmaLayerLink) + size, HEAP_MARK_SLL_TRANSMIT);
+    PacketTransmitSLLink *packet = (PacketTransmitSLLink *)buddha_heap_alloc(sizeof(PacketTransmitSLLink) + size, HEAP_MARK_SLL_TRANSMIT);
     if (!packet)
+    {
+        SigmaLogError("out of memory");
         return 0;
-    memset(packet, 0, sizeof(PacketTransmitSigmaLayerLink));
+    }
+    os_memset(packet, 0, sizeof(PacketTransmitSLLink));
     packet->lanwork = !!(flags & SLL_FLAG_SEND_PATH_LANWORK);
     packet->cloud = !!(flags & SLL_FLAG_SEND_PATH_CLOUD);
     packet->retry = retry + 1;
@@ -66,7 +70,7 @@ void *sll_send(uint8_t type, const uint8_t *dst, uint16_t size, uint8_t flags, u
     packet->header.opcode = OPCODE_LINK_SEND;
     packet->header.needAck = !!(flags & SLL_FLAG_SEND_ACK);
     packet->header.length = network_htons(size);
-    for (i = 0; i < sizeof(PacketTransmitSigmaLayerLink); i++)
+    for (i = 0; i < sizeof(PacketTransmitSLLink); i++)
         cs += *(((uint8_t *)&(packet->header)) + i);
     return packet + 1;
 }
@@ -75,10 +79,13 @@ void *sll_report(uint8_t type, uint16_t size, uint8_t flags)
 {
     uint32_t i = 0;
     uint8_t cs = 0;
-    PacketTransmitSigmaLayerLink *packet = (PacketTransmitSigmaLayerLink *)buddha_heap_alloc(sizeof(PacketTransmitSigmaLayerLink) + size, HEAP_MARK_SLL_TRANSMIT);
+    PacketTransmitSLLink *packet = (PacketTransmitSLLink *)buddha_heap_alloc(sizeof(PacketTransmitSLLink) + size, HEAP_MARK_SLL_TRANSMIT);
     if (!packet)
+    {
+        SigmaLogError("out of memory");
         return 0;
-    memset(packet, 0, sizeof(PacketTransmitSigmaLayerLink));
+    }
+    os_memset(packet, 0, sizeof(PacketTransmitSLLink));
     packet->lanwork = !!(flags & SLL_FLAG_SEND_PATH_LANWORK);
     packet->cloud = !!(flags & SLL_FLAG_SEND_PATH_CLOUD);
     packet->retry = 10;
@@ -92,7 +99,7 @@ void *sll_report(uint8_t type, uint16_t size, uint8_t flags)
     packet->header.opcode = OPCODE_LINK_SEND;
     packet->header.needAck = 0;
     packet->header.length = network_htons(size);
-    for (i = 0; i < sizeof(PacketTransmitSigmaLayerLink); i++)
+    for (i = 0; i < sizeof(PacketTransmitSLLink); i++)
         cs += *(((uint8_t *)&(packet->header)) + i);
     return packet + 1;
 }
@@ -101,10 +108,13 @@ void sll_ack(const uint8_t *dst, uint16_t reset, uint32_t sequence)
 {
     uint32_t i = 0;
     uint8_t cs = 0;
-    PacketTransmitSigmaLayerLink *packet = (PacketTransmitSigmaLayerLink *)buddha_heap_alloc(sizeof(PacketTransmitSigmaLayerLink), HEAP_MARK_SLL_TRANSMIT);
+    PacketTransmitSLLink *packet = (PacketTransmitSLLink *)buddha_heap_alloc(sizeof(PacketTransmitSLLink), HEAP_MARK_SLL_TRANSMIT);
     if (!packet)
+    {
+        SigmaLogError("out of memory");
         return;
-    memset(packet, 0, sizeof(PacketTransmitSigmaLayerLink));
+    }
+    os_memset(packet, 0, sizeof(PacketTransmitSLLink));
     packet->lanwork = 0;
     packet->cloud = 1;
     packet->retry = 1;
@@ -118,7 +128,7 @@ void sll_ack(const uint8_t *dst, uint16_t reset, uint32_t sequence)
     packet->header.opcode = OPCODE_LINK_ACK;
     packet->header.needAck = 0;
     packet->header.length = network_htons(0);
-    for (i = 0; i < sizeof(PacketTransmitSigmaLayerLink); i++)
+    for (i = 0; i < sizeof(PacketTransmitSLLink); i++)
         cs += *(((uint8_t *)&(packet->header)) + i);
 }
 
@@ -126,10 +136,13 @@ void sll_retrans(const uint8_t *dst, uint16_t reset, uint32_t sequence)
 {
     uint32_t i = 0;
     uint8_t cs = 0;
-    PacketTransmitSigmaLayerLink *packet = (PacketTransmitSigmaLayerLink *)buddha_heap_alloc(sizeof(PacketTransmitSigmaLayerLink), HEAP_MARK_SLL_TRANSMIT);
+    PacketTransmitSLLink *packet = (PacketTransmitSLLink *)buddha_heap_alloc(sizeof(PacketTransmitSLLink), HEAP_MARK_SLL_TRANSMIT);
     if (!packet)
+    {
+        SigmaLogError("out of memory");
         return;
-    memset(packet, 0, sizeof(PacketTransmitSigmaLayerLink));
+    }
+    os_memset(packet, 0, sizeof(PacketTransmitSLLink));
     packet->lanwork = 0;
     packet->cloud = 1;
     packet->retry = 1;
@@ -143,21 +156,21 @@ void sll_retrans(const uint8_t *dst, uint16_t reset, uint32_t sequence)
     packet->header.opcode = OPCODE_LINK_RETRANSMIT;
     packet->header.needAck = 0;
     packet->header.length = network_htons(0);
-    for (i = 0; i < sizeof(PacketTransmitSigmaLayerLink); i++)
+    for (i = 0; i < sizeof(PacketTransmitSLLink); i++)
         cs += *(((uint8_t *)&(packet->header)) + i);
 }
 
 int sll_recv(uint8_t type, uint8_t **remote, void **buffer)
 {
     int ret = 0;
-    PacketReceiveSigmaLayerLink *packet = 0, *min = 0;
-    while ((packet = (PacketReceiveSigmaLayerLink *)buddha_heap_find(packet, HEAP_MARK_SLL_RECEIVE)))
+    PacketReceiveSLLink *packet = 0, *min = 0;
+    while ((packet = (PacketReceiveSLLink *)buddha_heap_find(packet, HEAP_MARK_SLL_RECEIVE)))
     {
         if (min->header.type != type)
             continue;
         if (!min)
             min = packet;
-        if (!memcmp(min->header.src, packet->header.src, MAX_TERMINAL_ID) && 
+        if (!os_memcmp(min->header.src, packet->header.src, MAX_TERMINAL_ID) && 
             min->header.sequence > packet->header.sequence)
             min = packet;
     }

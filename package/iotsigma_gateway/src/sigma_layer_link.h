@@ -25,7 +25,7 @@ typedef struct
     uint8_t type:4;
     uint16_t length;
     uint8_t cs;
-}__attribute__((packed)) HeaderSigmaLayerLink;
+}__attribute__((packed)) HeaderSLLink;
 
 typedef struct
 {
@@ -34,13 +34,13 @@ typedef struct
     uint8_t retry:6;
     uint32_t time;
     uint32_t index;
-    HeaderSigmaLayerLink header;
-}__attribute__((packed)) PacketTransmitSigmaLayerLink;
+    HeaderSLLink header;
+}__attribute__((packed)) PacketTransmitSLLink;
 
 typedef struct
 {
-    HeaderSigmaLayerLink header;
-}__attribute__((packed)) PacketReceiveSigmaLayerLink;
+    HeaderSLLink header;
+}__attribute__((packed)) PacketReceiveSLLink;
 
 typedef struct
 {

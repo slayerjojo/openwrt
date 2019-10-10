@@ -50,7 +50,7 @@ typedef struct
     uint8_t payload[];
 }__attribute__((packed)) EventClusterPublish;
 
-typedef void (*SigmaLayerClusterListener)(
+typedef void (*SLClusterListener)(
         const uint8_t *cluster, const uint8_t *terminal, 
         uint8_t event, 
         const void *parameters, uint16_t size,
@@ -61,10 +61,10 @@ void slc_update(void);
 
 const uint8_t *slc_cluster_bcast(void);
 
-int slc_monitor(SigmaLayerClusterListener listener, void *ctx);
+int slc_monitor(SLClusterListener listener, void *ctx);
 
-int slc_listen(const uint8_t *cluster, SigmaLayerClusterListener listener, void *ctx);
-void slc_unlisten(const uint8_t *cluster, SigmaLayerClusterListener listener, void *ctx);
+int slc_listen(const uint8_t *cluster, SLClusterListener listener, void *ctx);
+void slc_unlisten(const uint8_t *cluster, SLClusterListener listener, void *ctx);
 
 int slc_join(const uint8_t *cluster, const uint8_t *pin, uint16_t type);
 void slc_leave(const uint8_t *cluster);

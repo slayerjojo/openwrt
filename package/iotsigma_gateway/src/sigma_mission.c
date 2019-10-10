@@ -44,9 +44,9 @@ void sigma_mission_update(void)
     }
 }
 
-SigmaMission *sigma_mission_create(SigmaMissionHandler handler, void *ctx, size_t size)
+SigmaMission *sigma_mission_create(SigmaMissionHandler handler, void *ctx, size_t extends)
 {
-    SigmaMission *m = (SigmaMission *)os_malloc(sizeof(SigmaMission) + size);
+    SigmaMission *m = (SigmaMission *)os_malloc(sizeof(SigmaMission) + extends);
     if (!m)
         return 0;
     os_memset(m, 0, sizeof(SigmaMission));

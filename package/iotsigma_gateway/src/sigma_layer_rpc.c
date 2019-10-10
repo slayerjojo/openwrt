@@ -19,8 +19,8 @@ typedef struct _sigma_rpc_requester_item
     SigmaRPCRequester requester;
 }SigmaRPCRequesterItem;
 
-SigmaRPCRequesterItem *_requesters = 0;
-SigmaRPCCall *_callers = 0;
+static SigmaRPCRequesterItem *_requesters = 0;
+static SigmaRPCCall *_callers = 0;
 static uint32_t _session = 1;
 
 static void slr_local_call(const SigmaDomain *domain, uint16_t opcode, uint32_t session, uint8_t response, const void *parameter, uint16_t size)
@@ -46,8 +46,14 @@ static void slr_monitor(const uint8_t *cluster, const uint8_t *terminal, uint8_t
     if (e->type != CLUSTER_TYPE_RPC)
         return;
     SigmaDomain domain;
-    os_memcpy(domain.cluster, cluster, MAX_CLUSTER_ID);
-    os_memcpy(domain.terminal, terminal, MAX_TERMINAL_ID);
+    if (cluster)
+        os_memcpy(domain.cluster, cluster, MAX_CLUSTER_ID);
+    else
+        os_memset(domain.cluster, 0, MAX_CLUSTER_ID);
+    if (terminal)
+        os_memcpy(domain.terminal, terminal, MAX_TERMINAL_ID);
+    else
+        os_memset(domain.terminal, 0, MAX_TERMINAL_ID);
 
     HeaderSigmaRPC *header = (HeaderSigmaRPC *)e->payload;
     if (OPCODE_RPC_RESPONSE == header->opcode)
@@ -143,7 +149,8 @@ SigmaRPCCall *slr_create(const SigmaDomain *domain, uint16_t opcode, uint16_t pa
     if (!caller)
         return 0;
     os_memset(caller, 0, sizeof(SigmaRPCCall));
-    os_memcpy(&caller->domain, domain, sizeof(SigmaDomain));
+    if (domain)
+        os_memcpy(&caller->domain, domain, sizeof(SigmaDomain));
     caller->opcode = opcode;
     caller->session = _session++;
     caller->size = extend;
@@ -169,101 +176,7 @@ void *slr_parameter(SigmaRPCCall *caller)
     return caller->extend + caller->size;
 }
 
-static void slr_push(void **parameter, const void *value, uint16_t size)
-{
-    os_memcpy(*parameter, value, size);
-    *(uint8_t **)parameter += size;
-}
-
-void slr_push_byte(void **parameter, uint8_t value)
-{
-    slr_push(parameter, &value, 1);
-}
-
-void slr_push_short(void **parameter, uint16_t value)
-{
-    value = network_htons(value);
-    slr_push(parameter, &value, 2);
-}
-
-void slr_push_int(void **parameter, uint32_t value)
-{
-    value = network_htonl(value);
-    slr_push(parameter, &value, 4);
-}
-
-void slr_push_long(void **parameter, uint64_t value)
-{
-    value = network_htonll(value);
-    slr_push(parameter, &value, 8);
-}
-
-void slr_push_float(void **parameter, double value)
-{
-    uint64_t v = network_htonll(*(uint64_t *)&value);
-    slr_push(parameter, &v, 8);
-}
-
-void slr_push_buffer(void **parameter, const void *value, uint16_t size)
-{
-    slr_push_short(parameter, size);
-    slr_push(parameter, value, size);
-}
-
-void slr_push_array(void **parameter, uint16_t count)
-{
-    slr_push_short(parameter, count);
-}
-
-uint8_t slr_pop_byte(const void **parameter)
-{
-    uint8_t v = **((uint8_t **)parameter);
-    (*(uint8_t **)parameter)++;
-    return v;
-}
-
-uint16_t slr_pop_short(const void **parameter)
-{
-    uint16_t v = network_ntohs(**(uint16_t **)parameter);
-    (*(uint8_t **)parameter) += 2;
-    return v;
-}
-
-uint32_t slr_pop_int(const void **parameter)
-{
-    uint32_t v = network_ntohl(**(uint32_t **)parameter);
-    (*(uint8_t **)parameter) += 4;
-    return v;
-}
-
-uint64_t slr_pop_long(const void **parameter)
-{
-    uint64_t v = network_ntohll(**(uint64_t **)parameter);
-    (*(uint8_t **)parameter) += 8;
-    return v;
-}
-
-double slr_pop_float(const void **parameter)
-{
-    uint64_t v = network_ntohll(**((uint64_t **)parameter));
-    (*(uint8_t **)parameter) += 8;
-    return *(double *)&v;
-}
-
-uint16_t slr_pop_buffer(const void **parameter, void **result)
-{
-    uint16_t size = slr_pop_short(parameter);
-    *result = *(uint8_t **)parameter;
-    (*(uint8_t **)parameter) += size;
-    return size;
-}
-
-uint16_t slr_pop_array(const void **parameter)
-{
-    return slr_pop_short(parameter);
-}
-
-void slr_call(SigmaRPCCall *caller, SigmaRPCResponser responser, void *ctx, uint32_t timeout)
+void slr_call(SigmaRPCCall *caller, uint32_t timeout, SigmaRPCResponser responser, void *ctx)
 {
     caller->time = os_ticks();
     caller->timeout = timeout;
@@ -296,9 +209,10 @@ void slr_call(SigmaRPCCall *caller, SigmaRPCResponser responser, void *ctx, uint
     caller = (SigmaRPCCall *)os_realloc(caller, sizeof(SigmaRPCCall) + caller->size);
 }
 
-int slr_response(SigmaDomain *domain, int ret, uint32_t session, const void *result, uint16_t size)
+int slr_response(const SigmaDomain *domain, int ret, uint32_t session, const void *result, uint16_t size)
 {
-    if (!os_memcmp(domain->terminal, sll_terminal_local(), MAX_TERMINAL_ID) ||
+    if (!domain ||
+        !os_memcmp(domain->terminal, sll_terminal_local(), MAX_TERMINAL_ID) ||
         !os_memcmp(domain->terminal, sll_src(0), MAX_TERMINAL_ID))
     {
         SigmaRPCCall *caller = _callers, *prev = 0;

@@ -1,17 +1,17 @@
-#include "log.h"
+#include "sigma_log.h"
 #include <stdio.h>
 #include <stdarg.h>
 #include <string.h>
 #include <time.h>
 
-inline void log_println(const char *file, size_t line, const char *func, unsigned char level, const char *fmt, ...)
+void log_println(const char *file, size_t line, const char *func, unsigned char level, const char *fmt, ...)
 {
     time_t now  = time(0);
     struct tm *t = localtime(&now);
 
     static size_t seq = 0;
 
-    printf("\n\033[37m%02d:%02d:%02d|\n%ld|%s:%4ld|%s|\033[%dmlv:%d|", 
+    printf("\n\033[37m%02d:%02d:%02d|%ld|%s:%4ld|%s|\033[%dmlv:%d|", 
         t->tm_hour, 
         t->tm_min, 
         t->tm_sec, 
@@ -26,6 +26,8 @@ inline void log_println(const char *file, size_t line, const char *func, unsigne
     va_start(args, fmt);
     vprintf(fmt, args);
     va_end(args);
+
+    printf("\033[37m");
 
     fflush(stdout);
 }
@@ -52,6 +54,8 @@ void log_dump(const char *file, size_t line, const char *func, unsigned char lev
 
     for (i = 0; i < size; i++)
         printf("%02x", *(((unsigned char *)buffer) + i));
+
+    printf("\033[37m");
 
     fflush(stdout);
 }
